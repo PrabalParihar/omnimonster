@@ -1,0 +1,25 @@
+{
+  "name": "@swap-sage/contracts-evm",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "lint": "eslint . --ext .ts,.js",
+    "clean": "hardhat clean && rm -rf cache artifacts",
+    "deploy:evm": "hardhat deploy:evm",
+    "deploy:local": "hardhat run scripts/evm-deploy.ts --network hardhat",
+    "deploy:anvil": "hardhat run scripts/evm-deploy.ts --network anvil",
+    "deploy:sepolia": "hardhat run scripts/evm-deploy.ts --network sepolia",
+    "deploy:goerli": "hardhat run scripts/evm-deploy.ts --network goerli"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.4",
+    "@types/node": "^20.11.17",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.1"
+  }
+}
