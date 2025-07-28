@@ -1,0 +1,11 @@
+{
+  "chainId": "swap-sage-1",
+  "rpcUrl": "http://localhost:26657",
+  "codeId": "1",
+  "contractAddress": "cosmos1m7h2n6jj4d5khp6lq9k9r8s9k6j4h5t6u7a8b9c0d1e2f3",
+  "deployer": "cosmos1dev0account1234567890abcdef0123456789abcdef",
+  "deploymentTime": "2025-07-22T07:50:00Z",
+  "storeTransactionHash": "0xmock_store_tx_hash_1234567890",
+  "instantiateTransactionHash": "0xmock_instantiate_tx_hash_1234567890",
+  "status": "simulated_deployment"
+}
