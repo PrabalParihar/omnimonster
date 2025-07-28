@@ -1,0 +1,11 @@
+{
+  "chainId": 11155111,
+  "network": "sepolia",
+  "address": "0x3D06e852c8027a5582380c86413A2B7Bc78E3F74",
+  "deployer": "0x2BCc053BB6915F28aC2041855D2292dDca406903",
+  "deploymentTime": "2025-07-28T13:32:14.902Z",
+  "blockNumber": 8861194,
+  "transactionHash": "0x742135e8cc93408f954b87e3a1250f4abd577279628193486e66289496d77d2c",
+  "gasUsed": "881997",
+  "gasPrice": "0"
+}
