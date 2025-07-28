@@ -49,3 +49,6 @@ artifacts/
 # Cosmos
 target/
 Cargo.lock
+
+# Documentation
+*.md
