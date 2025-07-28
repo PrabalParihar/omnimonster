@@ -1,5 +1,9 @@
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import { config as dotenvConfig } from "dotenv";
+
+// Load environment variables from .env file
+dotenvConfig();
 
 // Load environment variables
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x" + "0".repeat(64);
@@ -39,7 +43,7 @@ const config: HardhatUserConfig = {
     },
     sepolia: {
       url: SEPOLIA_RPC_URL,
-      accounts: PRIVATE_KEY !== "0x" + "0".repeat(64) ? [PRIVATE_KEY] : [],
+      accounts: PRIVATE_KEY !== "0x" + "0".repeat(64) ? ["0x" + PRIVATE_KEY] : [],
       chainId: 11155111,
     },
     goerli: {
