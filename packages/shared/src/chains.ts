@@ -1,3 +1,8 @@
+import { config as dotenvConfig } from 'dotenv';
+
+// Load environment variables from .env.local
+dotenvConfig({ path: '.env.local' });
+
 export interface ChainConfig {
   chainId: string | number;
   name: string;
@@ -46,18 +51,19 @@ export const evmChains: Record<string, EvmChainConfig> = {
     name: 'Sepolia Testnet',
     type: 'evm',
     rpcUrl: getEnvVar('SEPOLIA_RPC_URL', 'https://rpc.sepolia.dev'),
-    htlcAddress: getEnvVar('SEPOLIA_HTLC_ADDRESS', ''),
+    htlcAddress: getEnvVar('SEPOLIA_HTLC_ADDRESS', '0x3D06e852c8027a5582380c86413A2B7Bc78E3F74'),
     blockExplorer: 'https://sepolia.etherscan.io',
     faucetUrl: 'https://sepoliafaucet.com'
   },
-  goerli: {
-    chainId: 5,
-    name: 'Goerli Testnet',
+  
+  polygonAmoy: {
+    chainId: 80002,
+    name: 'Polygon Amoy Testnet',
     type: 'evm',
-    rpcUrl: getEnvVar('GOERLI_RPC_URL', 'https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'),
-    htlcAddress: getEnvVar('GOERLI_HTLC_ADDRESS', ''),
-    blockExplorer: 'https://goerli.etherscan.io',
-    faucetUrl: 'https://goerlifaucet.com'
+    rpcUrl: getEnvVar('POLYGON_AMOY_RPC_URL', 'https://rpc-amoy.polygon.technology'),
+    htlcAddress: getEnvVar('POLYGON_AMOY_HTLC_ADDRESS', '0x74DfeC5497e890d182eACAbEDf92bcA9021Aaad3'),
+    blockExplorer: 'https://amoy.polygonscan.com',
+    faucetUrl: 'https://faucet.polygon.technology'
   }
 };
 
