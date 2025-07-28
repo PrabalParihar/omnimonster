@@ -18,11 +18,26 @@
     "test:htlc": "pnpm test:evm && pnpm test:cosmos",
     "smoke:htlc": "tsx scripts/htlc-smoke.ts --local",
     "compile:evm": "cd contracts/evm && pnpm build",
-    "compile:cosmos": "cd contracts/cosmos && cargo wasm"
+    "compile:cosmos": "cd contracts/cosmos && cargo wasm",
+    "cli:swap": "tsx cli-swap.ts",
+    "deploy-setup": "tsx deploy-setup.ts",
+    "deploy:sepolia": "tsx deploy-sepolia.ts",
+    "deploy:polygon-amoy": "tsx deploy-polygon-amoy.ts",
+    "frontend:dev": "cd apps/frontend && pnpm dev",
+    "frontend:build": "cd apps/frontend && pnpm build",
+    "frontend:test-api": "cd apps/frontend && npx tsx test-api.ts"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "commander": "^11.1.0",
+    "dotenv": "^16.6.1",
+    "inquirer": "^9.3.7",
+    "ora": "^7.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",
     "@turbo/gen": "^1.12.4",
+    "@types/inquirer": "^9.0.7",
     "@types/jest": "^29.5.5",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
