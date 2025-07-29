@@ -50,8 +50,8 @@ export const evmChains: Record<string, EvmChainConfig> = {
     chainId: 11155111,
     name: 'Sepolia Testnet',
     type: 'evm',
-    rpcUrl: getEnvVar('SEPOLIA_RPC_URL', 'https://rpc.sepolia.dev'),
-    htlcAddress: getEnvVar('SEPOLIA_HTLC_ADDRESS', '0x3D06e852c8027a5582380c86413A2B7Bc78E3F74'),
+    rpcUrl: getEnvVar('SEPOLIA_RPC_URL', 'https://eth-sepolia.g.alchemy.com/v2/MS9pGRxd1Jh3rhVjyIkFzVfG1g3BcTk3'),
+    htlcAddress: getEnvVar('SEPOLIA_HTLC_ADDRESS', '0x095077a72ecF85023cF4317CcD42e43658516774'),
     blockExplorer: 'https://sepolia.etherscan.io',
     faucetUrl: 'https://sepoliafaucet.com'
   },
@@ -60,8 +60,8 @@ export const evmChains: Record<string, EvmChainConfig> = {
     chainId: 80002,
     name: 'Polygon Amoy Testnet',
     type: 'evm',
-    rpcUrl: getEnvVar('POLYGON_AMOY_RPC_URL', 'https://rpc-amoy.polygon.technology'),
-    htlcAddress: getEnvVar('POLYGON_AMOY_HTLC_ADDRESS', '0x74DfeC5497e890d182eACAbEDf92bcA9021Aaad3'),
+    rpcUrl: getEnvVar('POLYGON_AMOY_RPC_URL', 'https://polygon-amoy.g.alchemy.com/v2/MS9pGRxd1Jh3rhVjyIkFzVfG1g3BcTk3'),
+    htlcAddress: getEnvVar('POLYGON_AMOY_HTLC_ADDRESS', '0x04139d1fCC2E6f8b964C257eFceEA99a783Df422'),
     blockExplorer: 'https://amoy.polygonscan.com',
     faucetUrl: 'https://faucet.polygon.technology'
   }
