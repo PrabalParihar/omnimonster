@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import WebSocket from 'isomorphic-ws';
 import { EventEmitter } from 'events';
-import { RateLimiter } from './rateLimiter.js';
+import { RateLimiter } from './rateLimiter';
 import {
   FusionConfig,
   FusionConfigSchema,
@@ -30,7 +30,7 @@ import {
   APIError,
   APIErrorSchema,
   FusionEvents,
-} from './types.js';
+} from './types';
 
 export class FusionClient extends EventEmitter {
   private config: FusionConfig;
