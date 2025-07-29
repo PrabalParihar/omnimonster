@@ -1,11 +1,11 @@
 {
   "chainId": 80002,
   "network": "polygon-amoy",
-  "address": "0x74DfeC5497e890d182eACAbEDf92bcA9021Aaad3",
+  "address": "0x04139d1fCC2E6f8b964C257eFceEA99a783Df422",
   "deployer": "0x2BCc053BB6915F28aC2041855D2292dDca406903",
-  "deploymentTime": "2025-07-28T14:10:04.148Z",
-  "blockNumber": 24466148,
-  "transactionHash": "0x4699939f865105c28c415a55d2a37475fe77b9f0cf3beab83a19847622bc02bf",
+  "deploymentTime": "2025-07-29T00:31:13.796Z",
+  "blockNumber": 24483413,
+  "transactionHash": "0x250536e80ddc3ff0ae70b8ba15d51e33b0a6b0d01e1f3b5d347d433db5e76dd5",
   "gasUsed": "881997",
   "gasPrice": "0"
 }
