@@ -1,3 +1,3 @@
-export * from './evm.js';
-export * from './cosmos.js';
-export * from './mock.js';
+export * from './evm';
+export * from './cosmos';
+export * from './mock';
