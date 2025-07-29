@@ -1,1 +1,1 @@
-export * from './htlc.js';
+export * from './htlc';
