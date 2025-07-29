@@ -8,15 +8,15 @@ import { StargateClient } from '@cosmjs/stargate';
 import { OfflineSigner } from '@cosmjs/proto-signing';
 import { fromHex } from '@cosmjs/encoding';
 import { GasPrice } from '@cosmjs/stargate';
-import type { CosmosChainConfig } from '../chains.js';
-import { SwapState } from '../utils/index.js';
+import type { CosmosChainConfig } from '../chains';
+import { SwapState } from '../utils/index';
 import type { 
   HTLCDetails, 
   CreateHTLCParams, 
   FundedEvent, 
   ClaimedEvent, 
   RefundedEvent
-} from '../utils/index.js';
+} from '../utils/index';
 
 // CosmWasm message types based on the Rust contract
 export interface InstantiateMsg {
