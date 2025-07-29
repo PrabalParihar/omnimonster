@@ -1,297 +1,291 @@
-import { EventEmitter } from 'events';
-import { ethers } from 'ethers';
-import { getDatabase, SwapRecord, SwapEvent, SwapStatus, SwapEventType } from './database';
-import { 
-  generatePreimage, 
-  generateHashlock, 
-  generateHTLCId, 
-  calculateTimelock,
-  EvmHTLCClient,
-  CosmosHTLCClient,
-  evmChains,
-  cosmosChains,
-  CreateHTLCParams
-} from '../../../packages/shared/src';
+import { EventEmitter } from 'events'
+import { swapDatabase, SwapRecord, SwapEvent } from './database'
 
-export interface SwapRequest {
-  fromChain: string;
-  toChain: string;
-  amount: string;
-  beneficiary: string;
-  timelock?: number;
-  privateKey?: string;
-  mnemonic?: string;
-  dryRun?: boolean;
+interface CreateSwapParams {
+  fromChain: string
+  toChain: string
+  amount: string
+  beneficiary: string
+  timelock: number
+  slippage: number
+  dryRun: boolean
 }
 
-export interface SwapResponse {
-  id: string;
-  status: SwapStatus;
-  message: string;
+interface SwapResult {
+  id: string
+  status: string
+  message: string
 }
 
-export class OrchestratorService extends EventEmitter {
-  private db = getDatabase();
-  private activeSwaps = new Map<string, AbortController>();
+class OrchestratorService extends EventEmitter {
+  private isRunning = false
 
-  async executeSwap(request: SwapRequest): Promise<SwapResponse> {
-    const swapId = `swap_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  constructor() {
+    super()
+  }
+
+  async createSwap(params: CreateSwapParams): Promise<SwapResult> {
+    const swapId = `swap_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
+    // Create swap record
+    const swapRecord: SwapRecord = {
+      id: swapId,
+      fromChain: params.fromChain,
+      toChain: params.toChain,
+      amount: params.amount,
+      beneficiary: params.beneficiary,
+      timelock: params.timelock,
+      slippage: params.slippage,
+      dryRun: params.dryRun,
+      status: 'initiated',
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+
     try {
-      // Create swap record
-      const swapRecord = this.db.createSwap({
-        id: swapId,
-        fromChain: request.fromChain,
-        toChain: request.toChain,
-        amount: request.amount,
-        beneficiary: request.beneficiary,
-        timelock: request.timelock || 3600,
-        status: 'initiated'
-      });
+      // Create initial event
+      const initialEvent: SwapEvent = {
+        id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        swapId,
+        type: 'initiated',
+        data: {
+          message: 'Swap initiated',
+          params
+        },
+        timestamp: Date.now()
+      }
 
-      // Emit initiated event
-      this.emitEvent(swapId, 'INITIATED', { request });
+      // Save swap and initial event atomically
+      await swapDatabase.createSwapWithEvent(swapRecord, initialEvent)
 
-      // Start swap execution in background
-      this.executeSwapAsync(swapId, request).catch(error => {
-        console.error(`Swap ${swapId} failed:`, error);
-        this.updateSwapStatus(swapId, 'failed', error.message);
-        this.emitEvent(swapId, 'FAILED', { error: error.message });
-      });
+      // Emit to listeners
+      this.emit('swapEvent', initialEvent)
+
+      // Start the swap process
+      if (!this.isRunning) {
+        this.isRunning = true
+        this.processSwap(swapId, params)
+      }
 
       return {
         id: swapId,
         status: 'initiated',
-        message: 'Swap initiated successfully'
-      };
-
-    } catch (error) {
-      console.error('Failed to initiate swap:', error);
-      throw new Error(`Failed to initiate swap: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  private async executeSwapAsync(swapId: string, request: SwapRequest): Promise<void> {
-    const abortController = new AbortController();
-    this.activeSwaps.set(swapId, abortController);
-
-    try {
-      // Step 1: Generate parameters
-      this.updateSwapStatus(swapId, 'generating_params');
-      this.emitEvent(swapId, 'PARAMS_GENERATED', { message: 'Generating swap parameters...' });
-
-      const preimage = generatePreimage();
-      const hashlock = generateHashlock(preimage);
-      const timelock = calculateTimelock(request.timelock || 3600);
-      const nonce = Date.now().toString();
-
-      const srcHTLCId = generateHTLCId({
-        srcChain: request.fromChain === 'sepolia' ? evmChains.sepolia.chainId : cosmosChains.cosmosTestnet.chainId,
-        dstChain: request.toChain === 'sepolia' ? evmChains.sepolia.chainId : cosmosChains.cosmosTestnet.chainId,
-        nonce,
-        hashlock
-      });
-
-      const dstHTLCId = generateHTLCId({
-        srcChain: request.toChain === 'sepolia' ? evmChains.sepolia.chainId : cosmosChains.cosmosTestnet.chainId,
-        dstChain: request.fromChain === 'sepolia' ? evmChains.sepolia.chainId : cosmosChains.cosmosTestnet.chainId,
-        nonce,
-        hashlock
-      });
-
-      // Update swap with generated parameters
-      this.db.updateSwap(swapId, {
-        preimage,
-        hashlock,
-        srcHTLCId,
-        dstHTLCId
-      });
-
-      this.emitEvent(swapId, 'PARAMS_GENERATED', { 
-        preimage, 
-        hashlock, 
-        srcHTLCId, 
-        dstHTLCId,
-        timelock 
-      });
-
-      if (request.dryRun) {
-        this.updateSwapStatus(swapId, 'completed');
-        this.emitEvent(swapId, 'COMPLETE', { message: 'Dry run completed successfully' });
-        return;
+        message: 'Swap created successfully'
       }
 
-      // Step 2: Initialize clients
-      const { srcClient, dstClient } = await this.initializeClients(request);
-
-      // Step 3: Create source HTLC
-      this.updateSwapStatus(swapId, 'creating_src_htlc');
-      this.emitEvent(swapId, 'LOCK_SRC', { message: 'Creating HTLC on source chain...' });
-
-      const srcTxHash = await this.createSourceHTLC(srcClient, request, srcHTLCId, hashlock, timelock);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       
-      this.db.updateSwap(swapId, { srcTxHash });
-      this.emitEvent(swapId, 'LOCK_SRC', { 
-        message: 'Source HTLC created successfully',
-        txHash: srcTxHash,
-        htlcId: srcHTLCId
-      });
+      try {
+        // Check if swap was created before trying to update it
+        const existingSwap = await swapDatabase.getSwap(swapId)
+        if (existingSwap) {
+          // Try to update swap status and emit error event atomically
+          const errorEvent: SwapEvent = {
+            id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            swapId,
+            type: 'failed',
+            data: {
+              message: errorMessage
+            },
+            timestamp: Date.now()
+          }
 
-      // Step 4: Create destination HTLC
-      this.updateSwapStatus(swapId, 'creating_dst_htlc');
-      this.emitEvent(swapId, 'LOCK_DST', { message: 'Creating HTLC on destination chain...' });
+          await swapDatabase.transaction(async (client) => {
+            await swapDatabase.updateSwap(swapId, {
+              status: 'failed',
+              errorMessage
+            })
+            await swapDatabase.createEvent(errorEvent)
+          })
 
-      const dstTxHash = await this.createDestinationHTLC(dstClient, request, dstHTLCId, hashlock, timelock);
-      
-      this.db.updateSwap(swapId, { dstTxHash });
-      this.emitEvent(swapId, 'LOCK_DST', { 
-        message: 'Destination HTLC created successfully',
-        txHash: dstTxHash,
-        htlcId: dstHTLCId
-      });
-
-      // Step 5: Claim destination HTLC
-      this.updateSwapStatus(swapId, 'claiming_dst');
-      this.emitEvent(swapId, 'CLAIM_DST', { message: 'Claiming destination HTLC...' });
-
-      const claimDstTxHash = await this.claimHTLC(dstClient, request.toChain, dstHTLCId, preimage);
-      
-      this.db.updateSwap(swapId, { claimDstTxHash });
-      this.emitEvent(swapId, 'CLAIM_DST', { 
-        message: 'Destination HTLC claimed successfully',
-        txHash: claimDstTxHash,
-        preimageRevealed: preimage
-      });
-
-      // Step 6: Claim source HTLC
-      this.updateSwapStatus(swapId, 'claiming_src');
-      this.emitEvent(swapId, 'CLAIM_SRC', { message: 'Claiming source HTLC...' });
-
-      const claimSrcTxHash = await this.claimHTLC(srcClient, request.fromChain, srcHTLCId, preimage);
-      
-      this.db.updateSwap(swapId, { claimSrcTxHash });
-      this.emitEvent(swapId, 'CLAIM_SRC', { 
-        message: 'Source HTLC claimed successfully',
-        txHash: claimSrcTxHash
-      });
-
-      // Step 7: Complete
-      this.updateSwapStatus(swapId, 'completed');
-      this.emitEvent(swapId, 'COMPLETE', { 
-        message: 'Cross-chain atomic swap completed successfully!',
-        summary: {
-          srcHTLCId,
-          dstHTLCId,
-          amount: request.amount,
-          preimage
+          // Emit to listeners
+          this.emit('swapEvent', errorEvent)
         }
-      });
+      } catch (updateError) {
+        console.error('Failed to update swap status after error:', updateError)
+      }
+
+      throw new Error(`Failed to create swap: ${errorMessage}`)
+    }
+  }
+
+  private async processSwap(swapId: string, _params: CreateSwapParams) {
+    try {
+      // Simulate swap process steps
+      await this.simulateStep(swapId, 'generating_params', 'Generating HTLC parameters', 2000)
+      await this.simulateStep(swapId, 'creating_src_htlc', 'Creating source HTLC', 3000)
+      await this.simulateStep(swapId, 'creating_dst_htlc', 'Creating destination HTLC', 3000)
+      await this.simulateStep(swapId, 'claiming_dst', 'Claiming destination funds', 2000)
+      await this.simulateStep(swapId, 'claiming_src', 'Claiming source funds', 2000)
+      
+      // Complete the swap
+      const completedEvent: SwapEvent = {
+        id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        swapId,
+        type: 'completed',
+        data: {
+          message: 'Swap completed successfully'
+        },
+        timestamp: Date.now()
+      }
+
+      await swapDatabase.transaction(async (client) => {
+        await swapDatabase.updateSwap(swapId, { status: 'completed' })
+        await swapDatabase.createEvent(completedEvent)
+      })
+
+      this.emit('swapEvent', completedEvent)
 
     } catch (error) {
-      console.error(`Swap ${swapId} execution failed:`, error);
-      this.updateSwapStatus(swapId, 'failed', error instanceof Error ? error.message : String(error));
-      this.emitEvent(swapId, 'FAILED', { error: error instanceof Error ? error.message : String(error) });
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      const failedEvent: SwapEvent = {
+        id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        swapId,
+        type: 'failed',
+        data: {
+          message: errorMessage
+        },
+        timestamp: Date.now()
+      }
+
+      await swapDatabase.transaction(async (client) => {
+        await swapDatabase.updateSwap(swapId, {
+          status: 'failed',
+          errorMessage
+        })
+        await swapDatabase.createEvent(failedEvent)
+      })
+
+      this.emit('swapEvent', failedEvent)
     } finally {
-      this.activeSwaps.delete(swapId);
+      this.isRunning = false
     }
   }
 
-  private async initializeClients(request: SwapRequest) {
-    // This is a simplified version - you'll need to implement proper client initialization
-    // based on your existing CLI logic
-    
-    let srcClient: any;
-    let dstClient: any;
-
-    if (request.fromChain === 'sepolia') {
-      srcClient = new EvmHTLCClient(evmChains.sepolia.rpcUrl);
-    } else if (request.fromChain === 'polygonAmoy') {
-      srcClient = new EvmHTLCClient(evmChains.polygonAmoy.rpcUrl);
-    } else {
-      srcClient = new CosmosHTLCClient(cosmosChains.cosmosTestnet.rpcUrl);
+  private async simulateStep(swapId: string, status: string, message: string, delay: number) {
+    const stepEvent: SwapEvent = {
+      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      swapId,
+      type: status,
+      data: {
+        message,
+        timestamp: Date.now()
+      },
+      timestamp: Date.now()
     }
 
-    if (request.toChain === 'sepolia') {
-      dstClient = new EvmHTLCClient(evmChains.sepolia.rpcUrl);
-    } else if (request.toChain === 'polygonAmoy') {
-      dstClient = new EvmHTLCClient(evmChains.polygonAmoy.rpcUrl);
-    } else {
-      dstClient = new CosmosHTLCClient(cosmosChains.cosmosTestnet.rpcUrl);
-    }
+    // Update status and emit event atomically
+    await swapDatabase.transaction(async (client) => {
+      await swapDatabase.updateSwap(swapId, { status })
+      await swapDatabase.createEvent(stepEvent)
+    })
 
-    return { srcClient, dstClient };
+    // Emit to listeners
+    this.emit('swapEvent', stepEvent)
+
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, delay))
   }
 
-  private async createSourceHTLC(client: any, request: SwapRequest, htlcId: string, hashlock: string, timelock: number): Promise<string> {
-    // Mock implementation - replace with actual HTLC creation
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate transaction time
-    return `0x${Math.random().toString(16).slice(2, 66)}`;
-  }
-
-  private async createDestinationHTLC(client: any, request: SwapRequest, htlcId: string, hashlock: string, timelock: number): Promise<string> {
-    // Mock implementation - replace with actual HTLC creation
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate transaction time
-    return `0x${Math.random().toString(16).slice(2, 66)}`;
-  }
-
-  private async claimHTLC(client: any, chain: string, htlcId: string, preimage: string): Promise<string> {
-    // Mock implementation - replace with actual HTLC claiming
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate transaction time
-    return `0x${Math.random().toString(16).slice(2, 66)}`;
-  }
-
-  private updateSwapStatus(swapId: string, status: SwapStatus, errorMessage?: string) {
-    this.db.updateSwap(swapId, { status, errorMessage });
-  }
-
-  private emitEvent(swapId: string, type: SwapEventType, data?: any) {
-    const eventId = `event_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    
-    const event = this.db.addEvent({
-      id: eventId,
+  private async emitSwapEvent(swapId: string, type: string, data: Record<string, unknown>) {
+    const event: SwapEvent = {
+      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       swapId,
       type,
       data,
-      txHash: data?.txHash
-    });
-
-    // Emit to SSE clients
-    this.emit('swap-event', { swapId, event });
-    this.emit(`swap-event-${swapId}`, event);
-  }
-
-  getSwap(id: string): SwapRecord | null {
-    return this.db.getSwap(id);
-  }
-
-  getSwaps(limit?: number, offset?: number): SwapRecord[] {
-    return this.db.getSwaps(limit, offset);
-  }
-
-  getSwapEvents(swapId: string): SwapEvent[] {
-    return this.db.getEvents(swapId);
-  }
-
-  cancelSwap(swapId: string): boolean {
-    const controller = this.activeSwaps.get(swapId);
-    if (controller) {
-      controller.abort();
-      this.activeSwaps.delete(swapId);
-      this.updateSwapStatus(swapId, 'failed', 'Cancelled by user');
-      this.emitEvent(swapId, 'FAILED', { error: 'Cancelled by user' });
-      return true;
+      timestamp: Date.now()
     }
-    return false;
+
+    try {
+      // Save event to database - this will fail if swap doesn't exist (FK constraint)
+      await swapDatabase.createEvent(event)
+
+      // Emit to listeners
+      this.emit('swapEvent', event)
+    } catch (error) {
+      console.error(`Failed to emit swap event for swap ${swapId}:`, error)
+      throw error
+    }
+  }
+
+  async getSwap(swapId: string): Promise<SwapRecord | undefined> {
+    return await swapDatabase.getSwap(swapId)
+  }
+
+  async getSwaps(): Promise<SwapRecord[]> {
+    return await swapDatabase.getAllSwaps()
+  }
+
+  async getSwapEvents(swapId: string): Promise<SwapEvent[]> {
+    return await swapDatabase.getEventsForSwap(swapId)
+  }
+
+  async cancelSwap(swapId: string): Promise<boolean> {
+    const swap = await swapDatabase.getSwap(swapId)
+    if (!swap || swap.status === 'completed' || swap.status === 'failed') {
+      return false
+    }
+
+    const cancelledEvent: SwapEvent = {
+      id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      swapId,
+      type: 'cancelled',
+      data: {
+        message: 'Swap cancelled by user'
+      },
+      timestamp: Date.now()
+    }
+
+    await swapDatabase.transaction(async (client) => {
+      await swapDatabase.updateSwap(swapId, {
+        status: 'cancelled',
+        errorMessage: 'Swap cancelled by user'
+      })
+      await swapDatabase.createEvent(cancelledEvent)
+    })
+
+    this.emit('swapEvent', cancelledEvent)
+
+    return true
+  }
+
+  // Mock blockchain interaction methods
+  private async createEVMHTLC(_chain: string, _amount: string, _beneficiary: string, _timelock: number): Promise<{ txHash: string; htlcId: string }> {
+    // Mock implementation
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return {
+      txHash: `0x${Math.random().toString(16).substr(2, 64)}`,
+      htlcId: `htlc_${Math.random().toString(36).substr(2, 9)}`
+    }
+  }
+
+  private async createCosmosHTLC(_chain: string, _amount: string, _beneficiary: string, _timelock: number): Promise<{ txHash: string; htlcId: string }> {
+    // Mock implementation
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return {
+      txHash: `cosmos_${Math.random().toString(16).substr(2, 64)}`,
+      htlcId: `htlc_${Math.random().toString(36).substr(2, 9)}`
+    }
+  }
+
+  private async claimEVMHTLC(_chain: string, _htlcId: string, _preimage: string): Promise<{ txHash: string }> {
+    // Mock implementation
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return {
+      txHash: `0x${Math.random().toString(16).substr(2, 64)}`
+    }
+  }
+
+  private async claimCosmosHTLC(_chain: string, _htlcId: string, _preimage: string): Promise<{ txHash: string }> {
+    // Mock implementation
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return {
+      txHash: `cosmos_${Math.random().toString(16).substr(2, 64)}`
+    }
   }
 }
 
-// Singleton instance
-let orchestratorInstance: OrchestratorService | null = null;
-
-export function getOrchestrator(): OrchestratorService {
-  if (!orchestratorInstance) {
-    orchestratorInstance = new OrchestratorService();
-  }
-  return orchestratorInstance;
-} 
+// Export singleton instance
+export const orchestratorService = new OrchestratorService() 
