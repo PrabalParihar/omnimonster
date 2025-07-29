@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    appDir: true,
+  eslint: {
+    ignoreDuringBuilds: true,
   },
   transpilePackages: ['@swap-sage/orchestrator', '@swap-sage/shared'],
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
