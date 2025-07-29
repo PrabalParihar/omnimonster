@@ -1,11 +1,11 @@
 {
   "chainId": 11155111,
   "network": "sepolia",
-  "address": "0x3D06e852c8027a5582380c86413A2B7Bc78E3F74",
+  "address": "0x095077a72ecF85023cF4317CcD42e43658516774",
   "deployer": "0x2BCc053BB6915F28aC2041855D2292dDca406903",
-  "deploymentTime": "2025-07-28T13:32:14.902Z",
-  "blockNumber": 8861194,
-  "transactionHash": "0x742135e8cc93408f954b87e3a1250f4abd577279628193486e66289496d77d2c",
+  "deploymentTime": "2025-07-29T00:18:27.211Z",
+  "blockNumber": 8864421,
+  "transactionHash": "0x9b3ee01e90af340862aaedb063d48460537762f78ff0f3ff516b48ebc67297eb",
   "gasUsed": "881997",
   "gasPrice": "0"
 }
