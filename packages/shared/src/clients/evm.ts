@@ -1,5 +1,5 @@
 import { ethers, Contract, Provider, Signer } from 'ethers';
-import type { EvmChainConfig } from '../chains.js';
+import type { EvmChainConfig } from '../chains';
 import type { 
   HTLCDetails, 
   CreateHTLCParams, 
@@ -7,7 +7,7 @@ import type {
   ClaimedEvent, 
   RefundedEvent,
   SwapState 
-} from '../utils/index.js';
+} from '../utils/index';
 
 // SwapSageHTLC ABI - extracted from the contract artifact
 const SWAP_SAGE_HTLC_ABI = [
@@ -157,14 +157,66 @@ export class EvmHTLCClient {
 
     const { contractId, beneficiary, hashLock, timelock, value, token } = params;
     
+    console.log('🔧 EVM Client: Preparing fund() call with parameters:', {
+      contractId: contractId.substring(0, 10) + '...',
+      tokenAddress: token || 'ETH (zero address)',
+      beneficiary,
+      hashLock: hashLock.substring(0, 10) + '...',
+      timelock,
+      value,
+      isEthTransfer: !token || token === ethers.ZeroAddress
+    })
+    
     const tokenAddress = token || ethers.ZeroAddress; // Use zero address for ETH
     const isEth = tokenAddress === ethers.ZeroAddress;
     
     const txOptions: any = {};
     if (isEth) {
       txOptions.value = value;
+      console.log('💰 Adding ETH value to transaction options:', ethers.formatEther(value))
     }
 
+    try {
+      // Add gas estimation with detailed logging
+      console.log('⛽ Estimating gas for fund() transaction...')
+      const estimatedGas = await this.contract.fund.estimateGas(
+        contractId,
+        tokenAddress,
+        beneficiary,
+        hashLock,
+        timelock,
+        value,
+        txOptions
+      )
+      console.log('⛽ Gas estimation successful:', estimatedGas.toString())
+      
+      // Add some buffer to estimated gas
+      txOptions.gasLimit = (estimatedGas * BigInt(120)) / BigInt(100)
+      
+    } catch (gasError) {
+      console.error('❌ Gas estimation failed:', gasError)
+      
+      // Try to get more detailed error information
+      if (gasError instanceof Error) {
+        console.error('Gas estimation error details:', {
+          name: gasError.name,
+          message: gasError.message,
+          cause: gasError.cause
+        })
+        
+        // Check if it's a contract validation error
+        if (gasError.message.includes('execution reverted')) {
+          throw new Error(
+            'Contract validation failed during gas estimation. This indicates the transaction would revert. ' +
+            'Possible causes: duplicate contract ID, invalid timelock, invalid beneficiary, or insufficient balance.'
+          )
+        }
+      }
+      
+      throw new Error(`Gas estimation failed: ${gasError instanceof Error ? gasError.message : 'Unknown error'}`)
+    }
+
+    console.log('📝 Calling contract.fund() with final parameters...')
     return this.contract.fund(
       contractId,
       tokenAddress,
