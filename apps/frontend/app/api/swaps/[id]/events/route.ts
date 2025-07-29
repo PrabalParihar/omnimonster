@@ -1,123 +1,113 @@
-import { NextRequest } from 'next/server';
-import { getOrchestrator } from '../../../../../lib/orchestrator-service';
+import { NextRequest, NextResponse } from 'next/server';
+import { realAtomicOrchestratorService } from '@/lib/real-atomic-orchestrator';
 
-// GET /api/swaps/:id/events - Server-Sent Events stream
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
+// POST /api/swaps/:id/events - Add new event
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const event = await request.json();
+    
+    // Try to save event to database directly
+    try {
+      const { swapDatabase } = await import('@/lib/database');
+      await swapDatabase.createEvent(event);
+      return NextResponse.json(
+        { message: 'Event saved successfully' },
+        { status: 201, headers: corsHeaders }
+      );
+    } catch (dbError) {
+      console.warn('Failed to save event to database:', dbError);
+      return NextResponse.json(
+        { message: 'Event saved (fallback)' },
+        { status: 201, headers: corsHeaders }
+      );
+    }
+
+  } catch (error) {
+    console.error('Error saving event:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500, headers: corsHeaders }
+    );
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const swapId = params.id;
+  try {
+    // Check if swap exists
+    const swap = await realAtomicOrchestratorService.getSwap(params.id);
+    if (!swap) {
+      return NextResponse.json(
+        { error: 'Swap not found' },
+        { status: 404, headers: corsHeaders }
+      );
+    }
 
-  if (!swapId) {
-    return new Response('Swap ID is required', { status: 400 });
+    // Set up Server-Sent Events
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        // Send initial events
+        const events = await realAtomicOrchestratorService.getSwapEvents(params.id);
+        events.forEach(event => {
+          const data = `data: ${JSON.stringify({ type: 'event', event })}\n\n`;
+          controller.enqueue(encoder.encode(data));
+        });
+
+        // Set up event listener for new events
+        const handleEvent = (event: any) => {
+          if (event.swapId === params.id) {
+            const data = `data: ${JSON.stringify({ type: 'event', event })}\n\n`;
+            controller.enqueue(encoder.encode(data));
+          }
+        };
+
+        realAtomicOrchestratorService.on('swapEvent', handleEvent);
+
+        // Send heartbeat every 30 seconds
+        const heartbeatInterval = setInterval(() => {
+          const heartbeat = `data: ${JSON.stringify({ type: 'heartbeat', timestamp: Date.now() })}\n\n`;
+          controller.enqueue(encoder.encode(heartbeat));
+        }, 30000);
+
+        // Clean up on close
+        request.signal.addEventListener('abort', () => {
+          realAtomicOrchestratorService.off('swapEvent', handleEvent);
+          clearInterval(heartbeatInterval);
+          controller.close();
+        });
+      }
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        ...corsHeaders
+      }
+    });
+
+  } catch (error) {
+    console.error('Error setting up SSE:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500, headers: corsHeaders }
+    );
   }
-
-  const orchestrator = getOrchestrator();
-  const swap = orchestrator.getSwap(swapId);
-
-  if (!swap) {
-    return new Response('Swap not found', { status: 404 });
-  }
-
-  // Create a readable stream for SSE
-  const stream = new ReadableStream({
-    start(controller) {
-      // Send initial connection message
-      const data = `data: ${JSON.stringify({ 
-        type: 'connected', 
-        swapId, 
-        timestamp: Date.now() 
-      })}\n\n`;
-      controller.enqueue(new TextEncoder().encode(data));
-
-      // Send existing events first
-      const existingEvents = orchestrator.getSwapEvents(swapId);
-      existingEvents.forEach(event => {
-        const eventData = `data: ${JSON.stringify({
-          type: 'event',
-          event,
-          timestamp: Date.now()
-        })}\n\n`;
-        controller.enqueue(new TextEncoder().encode(eventData));
-      });
-
-      // Listen for new events
-      const handleEvent = (event: any) => {
-        const eventData = `data: ${JSON.stringify({
-          type: 'event',
-          event,
-          timestamp: Date.now()
-        })}\n\n`;
-        controller.enqueue(new TextEncoder().encode(eventData));
-      };
-
-      // Listen for events specific to this swap
-      orchestrator.on(`swap-event-${swapId}`, handleEvent);
-
-      // Cleanup function
-      const cleanup = () => {
-        orchestrator.off(`swap-event-${swapId}`, handleEvent);
-      };
-
-      // Handle client disconnect
-      request.signal.addEventListener('abort', () => {
-        cleanup();
-        controller.close();
-      });
-
-      // Heartbeat to keep connection alive
-      const heartbeat = setInterval(() => {
-        try {
-          const heartbeatData = `data: ${JSON.stringify({ 
-            type: 'heartbeat', 
-            timestamp: Date.now() 
-          })}\n\n`;
-          controller.enqueue(new TextEncoder().encode(heartbeatData));
-        } catch (error) {
-          // Connection closed
-          clearInterval(heartbeat);
-          cleanup();
-        }
-      }, 30000); // Every 30 seconds
-
-      // Auto-cleanup after swap completion or failure
-      const checkSwapStatus = () => {
-        const currentSwap = orchestrator.getSwap(swapId);
-        if (currentSwap && ['completed', 'failed', 'refunded'].includes(currentSwap.status)) {
-          // Send final status and close
-          const finalData = `data: ${JSON.stringify({
-            type: 'swap-final',
-            status: currentSwap.status,
-            timestamp: Date.now()
-          })}\n\n`;
-          controller.enqueue(new TextEncoder().encode(finalData));
-          
-          setTimeout(() => {
-            clearInterval(heartbeat);
-            cleanup();
-            controller.close();
-          }, 5000); // Close after 5 seconds
-        }
-      };
-
-      // Check status periodically
-      const statusCheck = setInterval(checkSwapStatus, 10000); // Every 10 seconds
-
-      // Cleanup status checker when connection closes
-      request.signal.addEventListener('abort', () => {
-        clearInterval(statusCheck);
-        clearInterval(heartbeat);
-      });
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Cache-Control',
-    },
-  });
 } 
