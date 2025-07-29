@@ -1,8 +1,8 @@
 // Export all Fusion service types and classes
-import { FusionClient } from './FusionClient.js';
-export { FusionClient } from './FusionClient.js';
-export { RateLimiter } from './rateLimiter.js';
-export * from './types.js';
+import { FusionClient } from './FusionClient';
+export { FusionClient } from './FusionClient';
+export { RateLimiter } from './rateLimiter';
+export * from './types';
 
 // Helper function to create a FusionClient with environment variables
 export function createFusionClient() {
