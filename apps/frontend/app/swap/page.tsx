@@ -3,7 +3,7 @@ import { ChatInterface } from '@/components/chat-interface'
 export default function SwapPage() {
   return (
     <div className="container mx-auto px-6 py-8">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold tracking-tight">
             Chat with Swap Sage
