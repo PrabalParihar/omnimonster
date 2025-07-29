@@ -6,8 +6,8 @@ import type {
   ClaimedEvent, 
   RefundedEvent,
   SwapState 
-} from '../utils/index.js';
-import type { EvmChainConfig, CosmosChainConfig } from '../chains.js';
+} from '../utils/index';
+import type { EvmChainConfig, CosmosChainConfig } from '../chains';
 
 /**
  * Mock EVM HTLC Client for testing
