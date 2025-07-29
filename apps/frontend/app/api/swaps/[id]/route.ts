@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrchestrator } from '../../../../lib/orchestrator-service';
+import { realAtomicOrchestratorService } from '@/lib/real-atomic-orchestrator';
 
 // Enable CORS
 const corsHeaders = {
@@ -18,18 +18,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const swapId = params.id;
-
-    if (!swapId) {
-      return NextResponse.json(
-        { error: 'Swap ID is required' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    const orchestrator = getOrchestrator();
-    const swap = orchestrator.getSwap(swapId);
-
+    const swap = await realAtomicOrchestratorService.getSwap(params.id);
+    
     if (!swap) {
       return NextResponse.json(
         { error: 'Swap not found' },
@@ -37,22 +27,57 @@ export async function GET(
       );
     }
 
-    // Get events for this swap
-    const events = orchestrator.getSwapEvents(swapId);
-
-    const response = {
-      swap,
-      events,
-      meta: {
-        eventCount: events.length,
-        lastUpdated: swap.updatedAt
-      }
-    };
-
-    return NextResponse.json(response, { headers: corsHeaders });
+    return NextResponse.json(swap, {
+      status: 200,
+      headers: corsHeaders
+    });
 
   } catch (error) {
     console.error('Error fetching swap:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500, headers: corsHeaders }
+    );
+  }
+}
+
+// PUT /api/swaps/:id - Update swap
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const updates = await request.json();
+    
+    // Try to update in database directly (for wallet orchestrator)
+    try {
+      const { swapDatabase } = await import('@/lib/database');
+      await swapDatabase.updateSwap(params.id, updates);
+      return NextResponse.json(
+        { message: 'Swap updated successfully' },
+        { status: 200, headers: corsHeaders }
+      );
+    } catch (dbError) {
+      console.warn('Direct database update failed, trying service:', dbError);
+      
+      // Fallback to real atomic orchestrator service
+      const success = await realAtomicOrchestratorService.updateSwap(params.id, updates);
+      
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Swap not found' },
+          { status: 404, headers: corsHeaders }
+        );
+      }
+
+      return NextResponse.json(
+        { message: 'Swap updated successfully' },
+        { status: 200, headers: corsHeaders }
+      );
+    }
+
+  } catch (error) {
+    console.error('Error updating swap:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500, headers: corsHeaders }
@@ -66,46 +91,18 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const swapId = params.id;
-
-    if (!swapId) {
+    const success = await realAtomicOrchestratorService.cancelSwap(params.id);
+    
+    if (!success) {
       return NextResponse.json(
-        { error: 'Swap ID is required' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    const orchestrator = getOrchestrator();
-    const swap = orchestrator.getSwap(swapId);
-
-    if (!swap) {
-      return NextResponse.json(
-        { error: 'Swap not found' },
+        { error: 'Swap not found or cannot be cancelled' },
         { status: 404, headers: corsHeaders }
-      );
-    }
-
-    // Only allow cancellation of active swaps
-    const cancellableStatuses = ['initiated', 'generating_params', 'creating_src_htlc', 'creating_dst_htlc'];
-    if (!cancellableStatuses.includes(swap.status)) {
-      return NextResponse.json(
-        { error: `Cannot cancel swap in status: ${swap.status}` },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    const cancelled = orchestrator.cancelSwap(swapId);
-
-    if (!cancelled) {
-      return NextResponse.json(
-        { error: 'Failed to cancel swap (may not be active)' },
-        { status: 400, headers: corsHeaders }
       );
     }
 
     return NextResponse.json(
       { message: 'Swap cancelled successfully' },
-      { headers: corsHeaders }
+      { status: 200, headers: corsHeaders }
     );
 
   } catch (error) {
