@@ -1,2 +1,2 @@
 // Services exports
-export * from './fusion/index.js';
+export * from './fusion/index';
