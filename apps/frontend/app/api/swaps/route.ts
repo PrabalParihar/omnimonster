@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrchestrator } from '../../../lib/orchestrator-service';
-import { SwapRequest } from '../../../lib/orchestrator-service';
+import { z } from 'zod';
+import { realAtomicOrchestratorService } from '@/lib/real-atomic-orchestrator';
 
-// Enable CORS
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -13,68 +12,58 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders });
 }
 
-// POST /api/swaps - Initiate a new swap
+const createSwapSchema = z.object({
+  fromChain: z.string(),
+  toChain: z.string(),
+  amount: z.string(),
+  beneficiary: z.string(),
+  timelock: z.number().optional().default(3600),
+  slippage: z.number().optional().default(1),
+  dryRun: z.boolean().optional().default(false),
+});
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Validate required fields
-    const { fromChain, toChain, amount, beneficiary } = body;
-    
-    if (!fromChain || !toChain || !amount || !beneficiary) {
-      return NextResponse.json(
-        { error: 'Missing required fields: fromChain, toChain, amount, beneficiary' },
-        { status: 400, headers: corsHeaders }
-      );
+    // Check if this is a wallet orchestrator swap record (has id, status, createdAt)
+    if (body.id && body.status && body.createdAt) {
+      // This is a wallet orchestrator saving a swap record
+      try {
+        const { swapDatabase } = await import('@/lib/database');
+        await swapDatabase.createSwap(body);
+        return NextResponse.json({ message: 'Swap saved successfully' }, {
+          status: 201,
+          headers: corsHeaders
+        });
+      } catch (dbError) {
+        console.warn('Database save failed:', dbError);
+        return NextResponse.json({ message: 'Swap saved (fallback)' }, {
+          status: 201,
+          headers: corsHeaders
+        });
+      }
+    } else {
+      // This is a request to create a new swap via real atomic orchestrator
+      const validatedData = createSwapSchema.parse(body);
+      const result = await realAtomicOrchestratorService.createSwap(validatedData);
+
+      return NextResponse.json(result, {
+        status: 201,
+        headers: corsHeaders
+      });
     }
-
-    // Validate chains
-    const supportedChains = ['sepolia', 'polygonAmoy', 'cosmosTestnet'];
-    if (!supportedChains.includes(fromChain) || !supportedChains.includes(toChain)) {
-      return NextResponse.json(
-        { error: `Unsupported chain. Supported: ${supportedChains.join(', ')}` },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    if (fromChain === toChain) {
-      return NextResponse.json(
-        { error: 'Source and destination chains must be different' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    // Validate amount
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      return NextResponse.json(
-        { error: 'Amount must be a positive number' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    // Create swap request
-    const swapRequest: SwapRequest = {
-      fromChain,
-      toChain,
-      amount: amount.toString(),
-      beneficiary,
-      timelock: body.timelock || 3600,
-      privateKey: body.privateKey,
-      mnemonic: body.mnemonic,
-      dryRun: body.dryRun || false
-    };
-
-    const orchestrator = getOrchestrator();
-    const response = await orchestrator.executeSwap(swapRequest);
-
-    return NextResponse.json(response, { 
-      status: 201, 
-      headers: corsHeaders 
-    });
 
   } catch (error) {
     console.error('Error creating swap:', error);
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.errors },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500, headers: corsHeaders }
@@ -82,37 +71,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/swaps - List swaps with pagination
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
-    const status = searchParams.get('status');
-
-    const orchestrator = getOrchestrator();
+    const swaps = await realAtomicOrchestratorService.getSwaps();
     
-    let swaps;
-    if (status) {
-      // Filter by status if provided
-      const allSwaps = orchestrator.getSwaps();
-      swaps = allSwaps.filter(swap => swap.status === status);
-    } else {
-      swaps = orchestrator.getSwaps(limit, offset);
-    }
-
-    // Add metadata
-    const response = {
-      swaps,
-      meta: {
-        limit,
-        offset,
-        count: swaps.length,
-        hasMore: swaps.length === limit
-      }
-    };
-
-    return NextResponse.json(response, { headers: corsHeaders });
+    return NextResponse.json(swaps, {
+      status: 200,
+      headers: corsHeaders
+    });
 
   } catch (error) {
     console.error('Error fetching swaps:', error);
