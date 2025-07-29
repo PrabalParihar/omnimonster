@@ -1,15 +1,15 @@
 // Core exports
-export * from './chains.js';
-export * from './clients/index.js';
-export * from './utils/index.js';
-export * from './services/index.js';
+export * from './chains';
+export * from './clients/index';
+export * from './utils/index';
+export * from './services/index';
 
 // Re-export commonly used types
 export type {
   ChainConfig,
   EvmChainConfig,
   CosmosChainConfig
-} from './chains.js';
+} from './chains';
 
 export type {
   HTLCDetails,
@@ -20,13 +20,17 @@ export type {
   RefundedEvent,
   HTLCParams,
   SwapState
-} from './utils/index.js';
+} from './utils/index';
 
-export type {
+// Export client classes as values, not types
+export {
   EvmHTLCClient,
-  EvmHTLCClientOptions,
   CosmosHTLCClient,
-  CosmosHTLCClientOptions,
   MockEvmHTLCClient,
   MockCosmosHTLCClient
-} from './clients/index.js';
+} from './clients/index';
+
+export type {
+  EvmHTLCClientOptions,
+  CosmosHTLCClientOptions
+} from './clients/index';
