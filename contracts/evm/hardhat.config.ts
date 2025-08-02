@@ -8,6 +8,7 @@ dotenvConfig();
 // Load environment variables
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x" + "0".repeat(64);
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "";
+const POLYGON_AMOY_RPC_URL = process.env.POLYGON_AMOY_RPC_URL || "";
 const GOERLI_RPC_URL = process.env.GOERLI_RPC_URL || "";
 
 // Custom task for deployment
@@ -20,7 +21,7 @@ task("deploy:evm", "Deploy HTLC contract to EVM network")
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.24",
+    version: "0.8.20",
     settings: {
       optimizer: {
         enabled: true,
@@ -43,13 +44,23 @@ const config: HardhatUserConfig = {
     },
     sepolia: {
       url: SEPOLIA_RPC_URL,
-      accounts: PRIVATE_KEY !== "0x" + "0".repeat(64) ? ["0x" + PRIVATE_KEY] : [],
+      accounts: PRIVATE_KEY !== "0x" + "0".repeat(64) ? [PRIVATE_KEY] : [],
       chainId: 11155111,
+    },
+    polygonAmoy: {
+      url: POLYGON_AMOY_RPC_URL,
+      accounts: PRIVATE_KEY !== "0x" + "0".repeat(64) ? [PRIVATE_KEY] : [],
+      chainId: 80002,
     },
     goerli: {
       url: GOERLI_RPC_URL,
       accounts: PRIVATE_KEY !== "0x" + "0".repeat(64) ? [PRIVATE_KEY] : [],
       chainId: 5,
+    },
+    monadTestnet: {
+      url: "https://testnet-rpc.monad.xyz",
+      accounts: PRIVATE_KEY !== "0x" + "0".repeat(64) ? [PRIVATE_KEY] : [],
+      chainId: 10143,
     },
   },
   paths: {
