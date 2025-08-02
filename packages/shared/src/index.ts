@@ -2,7 +2,27 @@
 export * from './chains';
 export * from './clients/index';
 export * from './utils/index';
-export * from './services/index';
+// Export services except for types that conflict with tokens
+export { FusionClient, createFusionClient, RateLimiter } from './services/index';
+export type { 
+  FusionConfig, 
+  QuoteRequest, 
+  QuoteResponse, 
+  FusionOrder, 
+  CreateOrderRequest, 
+  SubmitOrderRequest, 
+  SubmitOrderResponse, 
+  OrderStatus, 
+  TokenPricesResponse, 
+  GasPriceResponse,
+  WSSubscriptionRequest,
+  WSMessage,
+  APIError,
+  FusionEvents
+} from './services/index';
+// Database exports are server-side only - don't export to avoid browser import issues
+// export * from './database';
+export * from './tokens';
 
 // Re-export commonly used types
 export type {

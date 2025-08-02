@@ -8,6 +8,9 @@ import type {
   RefundedEvent,
   SwapState 
 } from '../utils/index';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('EvmHTLCClient');
 
 // SwapSageHTLC ABI - extracted from the contract artifact
 const SWAP_SAGE_HTLC_ABI = [
@@ -122,7 +125,7 @@ export interface EvmHTLCClientOptions {
 }
 
 export class EvmHTLCClient {
-  private contract: any; // Use any to avoid complex ethers type issues
+  private contract: any;
   private provider: Provider;
   private signer?: Signer;
   public readonly chain: EvmChainConfig;
@@ -136,7 +139,7 @@ export class EvmHTLCClient {
     
     // Create contract instance
     const contractProvider = this.signer || this.provider;
-    this.contract = new Contract(this.chain.htlcAddress, SWAP_SAGE_HTLC_ABI, contractProvider);
+    this.contract = new Contract(this.chain.htlcAddress, SWAP_SAGE_HTLC_ABI, contractProvider) as Contract;
   }
 
   /**
@@ -157,7 +160,7 @@ export class EvmHTLCClient {
 
     const { contractId, beneficiary, hashLock, timelock, value, token } = params;
     
-    console.log('🔧 EVM Client: Preparing fund() call with parameters:', {
+    logger.info('Preparing HTLC lock transaction', {
       contractId: contractId.substring(0, 10) + '...',
       tokenAddress: token || 'ETH (zero address)',
       beneficiary,
@@ -170,7 +173,7 @@ export class EvmHTLCClient {
     const tokenAddress = token || ethers.ZeroAddress; // Use zero address for ETH
     const isEth = tokenAddress === ethers.ZeroAddress;
     
-    const txOptions: any = {};
+    const txOptions: { value?: string; gasLimit?: bigint } = {};
     if (isEth) {
       txOptions.value = value;
       console.log('💰 Adding ETH value to transaction options:', ethers.formatEther(value))
@@ -201,7 +204,7 @@ export class EvmHTLCClient {
         console.error('Gas estimation error details:', {
           name: gasError.name,
           message: gasError.message,
-          cause: gasError.cause
+          cause: (gasError as any).cause
         })
         
         // Check if it's a contract validation error
