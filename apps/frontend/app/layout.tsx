@@ -10,10 +10,10 @@ import { Providers } from './providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Swap Sage - Cross-Chain Atomic Swaps',
-  description: 'Trustless cross-chain atomic swaps powered by HTLCs',
-  keywords: ['DeFi', 'Cross-chain', 'Atomic Swaps', 'HTLC', 'Blockchain'],
-  authors: [{ name: 'Swap Sage Team' }],
+  title: 'Fusion Swap - Pool-Based Token Swaps with Gasless Claims',
+  description: 'Trade tokens instantly with gasless claiming. Powered by HTLCs and pool liquidity for secure, efficient swaps across multiple chains.',
+  keywords: ['DeFi', 'Token Swap', 'Gasless', 'HTLC', 'Pool Liquidity', 'Web3Auth', 'Multi-Chain'],
+  authors: [{ name: 'Fusion Swap Team' }],
 }
 
 export default function RootLayout({
@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body
         className={cn(
           inter.className,

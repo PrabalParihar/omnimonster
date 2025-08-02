@@ -2,23 +2,22 @@
 
 import * as React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { WagmiProvider } from 'wagmi'
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
-import { config } from '@/lib/wagmi'
+import { Web3AuthProvider } from '@/lib/web3auth-context'
 import { WalletProvider } from '@/lib/wallet-context'
+import { ThemeProvider } from '@/components/theme-provider'
 
 const queryClient = new QueryClient()
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <WagmiProvider config={config}>
+    <ThemeProvider defaultTheme="light" storageKey="fusion-ui-theme">
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
+        <Web3AuthProvider>
           <WalletProvider>
             {children}
           </WalletProvider>
-        </RainbowKitProvider>
+        </Web3AuthProvider>
       </QueryClientProvider>
-    </WagmiProvider>
+    </ThemeProvider>
   )
-} 
+}
