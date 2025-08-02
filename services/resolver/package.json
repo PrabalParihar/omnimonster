@@ -1,0 +1,22 @@
+{
+  "name": "@swap-sage/resolver-service",
+  "version": "1.0.0",
+  "description": "Fusion Swap Resolver Background Service",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@swap-sage/shared": "workspace:*",
+    "ethers": "^6.15.0",
+    "dotenv": "^16.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3"
+  }
+}
