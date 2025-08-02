@@ -3,7 +3,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  transpilePackages: ['@swap-sage/orchestrator', '@swap-sage/shared'],
+  transpilePackages: ['@swap-sage/shared'],
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     // Handle node modules that need to be bundled for the browser
     if (!isServer) {
@@ -13,8 +13,17 @@ const nextConfig = {
         net: false,
         tls: false,
         crypto: false,
+        dns: false,
+        pg: false,
+        'pg-native': false,
       };
     }
+
+    // Add module resolution for workspace packages
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@swap-sage/shared': require.resolve('../../packages/shared'),
+    };
 
     return config;
   },
