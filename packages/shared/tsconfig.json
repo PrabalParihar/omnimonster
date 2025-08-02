@@ -11,7 +11,9 @@
     "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "noEmit": false,
     "module": "ESNext",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "types": ["node"],
+    "lib": ["ES2017", "ES2020"]
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts"]
