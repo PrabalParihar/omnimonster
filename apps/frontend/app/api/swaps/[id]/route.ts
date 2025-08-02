@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { realAtomicOrchestratorService } from '@/lib/real-atomic-orchestrator';
+import { z } from 'zod';
+import { FusionDatabase, getDatabaseConfig, FusionDAO, SwapStatus } from '../../../../../../packages/shared/src/database';
 
-// Enable CORS
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -12,72 +12,58 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders });
 }
 
-// GET /api/swaps/:id - Get swap details
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+const updateSwapSchema = z.object({
+  userAddress: z.string().optional(),
+  hashLock: z.string().optional(),
+  preimageHash: z.string().optional(),
+  userHtlcContract: z.string().optional(),
+  poolHtlcContract: z.string().optional(),
+  status: z.string().optional(),
+  expectedAmount: z.string().optional(),
+});
+
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const swap = await realAtomicOrchestratorService.getSwap(params.id);
+    const { id } = params;
+    const body = await request.json();
     
-    if (!swap) {
-      return NextResponse.json(
-        { error: 'Swap not found' },
-        { status: 404, headers: corsHeaders }
-      );
-    }
-
-    return NextResponse.json(swap, {
-      status: 200,
-      headers: corsHeaders
-    });
-
-  } catch (error) {
-    console.error('Error fetching swap:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500, headers: corsHeaders }
-    );
-  }
-}
-
-// PUT /api/swaps/:id - Update swap
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const updates = await request.json();
+    console.log(`🔄 Updating swap ${id} with data:`, body);
     
-    // Try to update in database directly (for wallet orchestrator)
+    const validatedData = updateSwapSchema.parse(body);
+    console.log('✅ Validation passed:', validatedData);
+    
     try {
-      const { swapDatabase } = await import('@/lib/database');
-      await swapDatabase.updateSwap(params.id, updates);
-      return NextResponse.json(
-        { message: 'Swap updated successfully' },
-        { status: 200, headers: corsHeaders }
-      );
-    } catch (dbError) {
-      console.warn('Direct database update failed, trying service:', dbError);
-      
-      // Fallback to real atomic orchestrator service
-      const success = await realAtomicOrchestratorService.updateSwap(params.id, updates);
-      
-      if (!success) {
-        return NextResponse.json(
-          { error: 'Swap not found' },
-          { status: 404, headers: corsHeaders }
-        );
-      }
+      const dbConfig = getDatabaseConfig();
+      const database = FusionDatabase.getInstance(dbConfig);
+      const dao = new FusionDAO(database);
+      await dao.updateSwapRequest(id, validatedData);
+      console.log(`✅ Swap ${id} updated successfully`);
 
-      return NextResponse.json(
-        { message: 'Swap updated successfully' },
-        { status: 200, headers: corsHeaders }
-      );
+      return NextResponse.json({ message: 'Swap updated successfully' }, {
+        status: 200,
+        headers: corsHeaders
+      });
+    } catch (dbError) {
+      console.error(`Database error updating swap ${id}:`, dbError);
+      return NextResponse.json({ 
+        error: 'Failed to update swap',
+        details: dbError instanceof Error ? dbError.message : String(dbError)
+      }, {
+        status: 500,
+        headers: corsHeaders
+      });
     }
 
   } catch (error) {
     console.error('Error updating swap:', error);
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.errors },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500, headers: corsHeaders }
@@ -85,31 +71,57 @@ export async function PUT(
   }
 }
 
-// DELETE /api/swaps/:id - Cancel swap
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const success = await realAtomicOrchestratorService.cancelSwap(params.id);
+    const { id } = params;
     
-    if (!success) {
-      return NextResponse.json(
-        { error: 'Swap not found or cannot be cancelled' },
-        { status: 404, headers: corsHeaders }
-      );
+    console.log(`📖 Getting swap ${id}`);
+    
+    try {
+      const dbConfig = getDatabaseConfig();
+      const database = FusionDatabase.getInstance(dbConfig);
+      const dao = new FusionDAO(database);
+      const swap = await dao.getSwapRequest(id);
+      
+      if (!swap) {
+        return NextResponse.json({ error: 'Swap not found' }, {
+          status: 404,
+          headers: corsHeaders
+        });
+      }
+
+      // Transform database response to frontend format
+      const transformedSwap = {
+        ...swap,
+        beneficiaryAddress: swap.user_address, // Map user_address to beneficiaryAddress
+        sourceChain: swap.source_token?.split(':')[0] || '',
+        sourceToken: swap.source_token?.split(':')[1] || '',
+        destinationChain: swap.target_token?.split(':')[0] || '',
+        destinationToken: swap.target_token?.split(':')[1] || '',
+        targetAmount: swap.expected_amount,
+        timelock: swap.expiration_time
+      };
+
+      return NextResponse.json(transformedSwap, {
+        status: 200,
+        headers: corsHeaders
+      });
+    } catch (dbError) {
+      console.error(`Database error getting swap ${id}:`, dbError);
+      return NextResponse.json({ 
+        error: 'Failed to get swap',
+        details: dbError instanceof Error ? dbError.message : String(dbError)
+      }, {
+        status: 500,
+        headers: corsHeaders
+      });
     }
 
-    return NextResponse.json(
-      { message: 'Swap cancelled successfully' },
-      { status: 200, headers: corsHeaders }
-    );
-
   } catch (error) {
-    console.error('Error cancelling swap:', error);
+    console.error('Error getting swap:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500, headers: corsHeaders }
     );
   }
-} 
+}
