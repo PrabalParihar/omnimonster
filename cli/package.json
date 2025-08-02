@@ -1,0 +1,45 @@
+{
+  "name": "fusion-cli",
+  "version": "1.0.0",
+  "description": "CLI tool for testing and managing Fusion Swap backend systems",
+  "main": "fusion-test.ts",
+  "bin": {
+    "fusion-test": "./fusion-test.ts"
+  },
+  "scripts": {
+    "start": "tsx fusion-test.ts",
+    "test": "tsx fusion-test.ts",
+    "build": "tsc",
+    "dev": "tsx watch fusion-test.ts"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2",
+    "figlet": "^1.7.0",
+    "inquirer": "^8.2.6",
+    "ora": "^5.4.1",
+    "table": "^6.8.1",
+    "dotenv": "^16.3.1",
+    "ethers": "^6.8.1",
+    "axios": "^1.6.2",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.9",
+    "@types/figlet": "^1.5.8",
+    "@types/inquirer": "^8.2.10",
+    "@types/ws": "^8.5.8",
+    "tsx": "^4.1.2",
+    "typescript": "^5.2.2"
+  },
+  "keywords": [
+    "fusion",
+    "swap",
+    "defi",
+    "htlc",
+    "cli",
+    "testing"
+  ],
+  "author": "Fusion Swap Team",
+  "license": "MIT"
+}
