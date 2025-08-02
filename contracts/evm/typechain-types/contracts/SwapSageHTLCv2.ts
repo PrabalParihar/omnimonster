@@ -23,7 +23,7 @@ import type {
   TypedContractMethod,
 } from "../common";
 
-export interface SwapSageHTLCInterface extends Interface {
+export interface SwapSageHTLCv2Interface extends Interface {
   getFunction(
     nameOrSignature:
       | "claim"
@@ -32,12 +32,24 @@ export interface SwapSageHTLCInterface extends Interface {
       | "getDetails"
       | "isClaimable"
       | "isRefundable"
+      | "isTrustedForwarder"
+      | "owner"
       | "refund"
+      | "renounceOwnership"
+      | "setTrustedForwarder"
       | "swaps"
+      | "transferOwnership"
+      | "trustedForwarder"
+      | "trustedForwarders"
   ): FunctionFragment;
 
   getEvent(
-    nameOrSignatureOrTopic: "Claimed" | "Funded" | "Refunded"
+    nameOrSignatureOrTopic:
+      | "Claimed"
+      | "Funded"
+      | "OwnershipTransferred"
+      | "Refunded"
+      | "TrustedForwarderUpdated"
   ): EventFragment;
 
   encodeFunctionData(
@@ -71,8 +83,33 @@ export interface SwapSageHTLCInterface extends Interface {
     functionFragment: "isRefundable",
     values: [BytesLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "isTrustedForwarder",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(functionFragment: "refund", values: [BytesLike]): string;
+  encodeFunctionData(
+    functionFragment: "renounceOwnership",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setTrustedForwarder",
+    values: [AddressLike, boolean]
+  ): string;
   encodeFunctionData(functionFragment: "swaps", values: [BytesLike]): string;
+  encodeFunctionData(
+    functionFragment: "transferOwnership",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "trustedForwarder",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "trustedForwarders",
+    values: [AddressLike]
+  ): string;
 
   decodeFunctionResult(functionFragment: "claim", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "fund", data: BytesLike): Result;
@@ -89,8 +126,33 @@ export interface SwapSageHTLCInterface extends Interface {
     functionFragment: "isRefundable",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "isTrustedForwarder",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "refund", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setTrustedForwarder",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "swaps", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "transferOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "trustedForwarder",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "trustedForwarders",
+    data: BytesLike
+  ): Result;
 }
 
 export namespace ClaimedEvent {
@@ -152,6 +214,19 @@ export namespace FundedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace OwnershipTransferredEvent {
+  export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
+  export type OutputTuple = [previousOwner: string, newOwner: string];
+  export interface OutputObject {
+    previousOwner: string;
+    newOwner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace RefundedEvent {
   export type InputTuple = [
     contractId: BytesLike,
@@ -174,11 +249,24 @@ export namespace RefundedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export interface SwapSageHTLC extends BaseContract {
-  connect(runner?: ContractRunner | null): SwapSageHTLC;
+export namespace TrustedForwarderUpdatedEvent {
+  export type InputTuple = [forwarder: AddressLike, trusted: boolean];
+  export type OutputTuple = [forwarder: string, trusted: boolean];
+  export interface OutputObject {
+    forwarder: string;
+    trusted: boolean;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export interface SwapSageHTLCv2 extends BaseContract {
+  connect(runner?: ContractRunner | null): SwapSageHTLCv2;
   waitForDeployment(): Promise<this>;
 
-  interface: SwapSageHTLCInterface;
+  interface: SwapSageHTLCv2Interface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
@@ -262,7 +350,23 @@ export interface SwapSageHTLC extends BaseContract {
     "view"
   >;
 
+  isTrustedForwarder: TypedContractMethod<
+    [forwarder: AddressLike],
+    [boolean],
+    "view"
+  >;
+
+  owner: TypedContractMethod<[], [string], "view">;
+
   refund: TypedContractMethod<[_contractId: BytesLike], [void], "nonpayable">;
+
+  renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
+
+  setTrustedForwarder: TypedContractMethod<
+    [forwarder: AddressLike, trusted: boolean],
+    [void],
+    "nonpayable"
+  >;
 
   swaps: TypedContractMethod<
     [arg0: BytesLike],
@@ -277,6 +381,20 @@ export interface SwapSageHTLC extends BaseContract {
         state: bigint;
       }
     ],
+    "view"
+  >;
+
+  transferOwnership: TypedContractMethod<
+    [newOwner: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
+  trustedForwarder: TypedContractMethod<[], [string], "view">;
+
+  trustedForwarders: TypedContractMethod<
+    [arg0: AddressLike],
+    [boolean],
     "view"
   >;
 
@@ -332,8 +450,24 @@ export interface SwapSageHTLC extends BaseContract {
     nameOrSignature: "isRefundable"
   ): TypedContractMethod<[_contractId: BytesLike], [boolean], "view">;
   getFunction(
+    nameOrSignature: "isTrustedForwarder"
+  ): TypedContractMethod<[forwarder: AddressLike], [boolean], "view">;
+  getFunction(
+    nameOrSignature: "owner"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
     nameOrSignature: "refund"
   ): TypedContractMethod<[_contractId: BytesLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "renounceOwnership"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setTrustedForwarder"
+  ): TypedContractMethod<
+    [forwarder: AddressLike, trusted: boolean],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "swaps"
   ): TypedContractMethod<
@@ -351,6 +485,15 @@ export interface SwapSageHTLC extends BaseContract {
     ],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "transferOwnership"
+  ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "trustedForwarder"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "trustedForwarders"
+  ): TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
   getEvent(
     key: "Claimed"
@@ -367,11 +510,25 @@ export interface SwapSageHTLC extends BaseContract {
     FundedEvent.OutputObject
   >;
   getEvent(
+    key: "OwnershipTransferred"
+  ): TypedContractEvent<
+    OwnershipTransferredEvent.InputTuple,
+    OwnershipTransferredEvent.OutputTuple,
+    OwnershipTransferredEvent.OutputObject
+  >;
+  getEvent(
     key: "Refunded"
   ): TypedContractEvent<
     RefundedEvent.InputTuple,
     RefundedEvent.OutputTuple,
     RefundedEvent.OutputObject
+  >;
+  getEvent(
+    key: "TrustedForwarderUpdated"
+  ): TypedContractEvent<
+    TrustedForwarderUpdatedEvent.InputTuple,
+    TrustedForwarderUpdatedEvent.OutputTuple,
+    TrustedForwarderUpdatedEvent.OutputObject
   >;
 
   filters: {
@@ -397,6 +554,17 @@ export interface SwapSageHTLC extends BaseContract {
       FundedEvent.OutputObject
     >;
 
+    "OwnershipTransferred(address,address)": TypedContractEvent<
+      OwnershipTransferredEvent.InputTuple,
+      OwnershipTransferredEvent.OutputTuple,
+      OwnershipTransferredEvent.OutputObject
+    >;
+    OwnershipTransferred: TypedContractEvent<
+      OwnershipTransferredEvent.InputTuple,
+      OwnershipTransferredEvent.OutputTuple,
+      OwnershipTransferredEvent.OutputObject
+    >;
+
     "Refunded(bytes32,address,uint256)": TypedContractEvent<
       RefundedEvent.InputTuple,
       RefundedEvent.OutputTuple,
@@ -406,6 +574,17 @@ export interface SwapSageHTLC extends BaseContract {
       RefundedEvent.InputTuple,
       RefundedEvent.OutputTuple,
       RefundedEvent.OutputObject
+    >;
+
+    "TrustedForwarderUpdated(address,bool)": TypedContractEvent<
+      TrustedForwarderUpdatedEvent.InputTuple,
+      TrustedForwarderUpdatedEvent.OutputTuple,
+      TrustedForwarderUpdatedEvent.OutputObject
+    >;
+    TrustedForwarderUpdated: TypedContractEvent<
+      TrustedForwarderUpdatedEvent.InputTuple,
+      TrustedForwarderUpdatedEvent.OutputTuple,
+      TrustedForwarderUpdatedEvent.OutputObject
     >;
   };
 }

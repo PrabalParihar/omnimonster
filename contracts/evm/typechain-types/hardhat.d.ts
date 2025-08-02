@@ -18,41 +18,37 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.Ownable__factory>;
     getContractFactory(
-      name: "IERC1363",
+      name: "IERC1155Errors",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IERC1363__factory>;
+    ): Promise<Contracts.IERC1155Errors__factory>;
+    getContractFactory(
+      name: "IERC20Errors",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IERC20Errors__factory>;
+    getContractFactory(
+      name: "IERC721Errors",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IERC721Errors__factory>;
+    getContractFactory(
+      name: "ERC20",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ERC20__factory>;
+    getContractFactory(
+      name: "IERC20Metadata",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IERC20Metadata__factory>;
     getContractFactory(
       name: "IERC20",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC20__factory>;
     getContractFactory(
-      name: "SafeERC20",
+      name: "MonsterToken",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.SafeERC20__factory>;
+    ): Promise<Contracts.MonsterToken__factory>;
     getContractFactory(
-      name: "IERC165",
+      name: "SimpleMonsterToken",
       signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IERC165__factory>;
-    getContractFactory(
-      name: "ReentrancyGuard",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.ReentrancyGuard__factory>;
-    getContractFactory(
-      name: "MaliciousReentrancy",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.MaliciousReentrancy__factory>;
-    getContractFactory(
-      name: "MockERC20",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.MockERC20__factory>;
-    getContractFactory(
-      name: "SwapSage",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.SwapSage__factory>;
-    getContractFactory(
-      name: "SwapSageHTLC",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.SwapSageHTLC__factory>;
+    ): Promise<Contracts.SimpleMonsterToken__factory>;
 
     getContractAt(
       name: "Ownable",
@@ -60,91 +56,82 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.Ownable>;
     getContractAt(
-      name: "IERC1363",
+      name: "IERC1155Errors",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.IERC1363>;
+    ): Promise<Contracts.IERC1155Errors>;
+    getContractAt(
+      name: "IERC20Errors",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IERC20Errors>;
+    getContractAt(
+      name: "IERC721Errors",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IERC721Errors>;
+    getContractAt(
+      name: "ERC20",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ERC20>;
+    getContractAt(
+      name: "IERC20Metadata",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IERC20Metadata>;
     getContractAt(
       name: "IERC20",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.IERC20>;
     getContractAt(
-      name: "SafeERC20",
+      name: "MonsterToken",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.SafeERC20>;
+    ): Promise<Contracts.MonsterToken>;
     getContractAt(
-      name: "IERC165",
+      name: "SimpleMonsterToken",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
-    ): Promise<Contracts.IERC165>;
-    getContractAt(
-      name: "ReentrancyGuard",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.ReentrancyGuard>;
-    getContractAt(
-      name: "MaliciousReentrancy",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.MaliciousReentrancy>;
-    getContractAt(
-      name: "MockERC20",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.MockERC20>;
-    getContractAt(
-      name: "SwapSage",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.SwapSage>;
-    getContractAt(
-      name: "SwapSageHTLC",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.SwapSageHTLC>;
+    ): Promise<Contracts.SimpleMonsterToken>;
 
     deployContract(
       name: "Ownable",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Ownable>;
     deployContract(
-      name: "IERC1363",
+      name: "IERC1155Errors",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC1363>;
+    ): Promise<Contracts.IERC1155Errors>;
+    deployContract(
+      name: "IERC20Errors",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC20Errors>;
+    deployContract(
+      name: "IERC721Errors",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC721Errors>;
+    deployContract(
+      name: "ERC20",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ERC20>;
+    deployContract(
+      name: "IERC20Metadata",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC20Metadata>;
     deployContract(
       name: "IERC20",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
-      name: "SafeERC20",
+      name: "MonsterToken",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.SafeERC20>;
+    ): Promise<Contracts.MonsterToken>;
     deployContract(
-      name: "IERC165",
+      name: "SimpleMonsterToken",
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC165>;
-    deployContract(
-      name: "ReentrancyGuard",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.ReentrancyGuard>;
-    deployContract(
-      name: "MaliciousReentrancy",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.MaliciousReentrancy>;
-    deployContract(
-      name: "MockERC20",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.MockERC20>;
-    deployContract(
-      name: "SwapSage",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.SwapSage>;
-    deployContract(
-      name: "SwapSageHTLC",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.SwapSageHTLC>;
+    ): Promise<Contracts.SimpleMonsterToken>;
 
     deployContract(
       name: "Ownable",
@@ -152,50 +139,45 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.Ownable>;
     deployContract(
-      name: "IERC1363",
+      name: "IERC1155Errors",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC1363>;
+    ): Promise<Contracts.IERC1155Errors>;
+    deployContract(
+      name: "IERC20Errors",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC20Errors>;
+    deployContract(
+      name: "IERC721Errors",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC721Errors>;
+    deployContract(
+      name: "ERC20",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ERC20>;
+    deployContract(
+      name: "IERC20Metadata",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC20Metadata>;
     deployContract(
       name: "IERC20",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
-      name: "SafeERC20",
+      name: "MonsterToken",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.SafeERC20>;
+    ): Promise<Contracts.MonsterToken>;
     deployContract(
-      name: "IERC165",
+      name: "SimpleMonsterToken",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IERC165>;
-    deployContract(
-      name: "ReentrancyGuard",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.ReentrancyGuard>;
-    deployContract(
-      name: "MaliciousReentrancy",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.MaliciousReentrancy>;
-    deployContract(
-      name: "MockERC20",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.MockERC20>;
-    deployContract(
-      name: "SwapSage",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.SwapSage>;
-    deployContract(
-      name: "SwapSageHTLC",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.SwapSageHTLC>;
+    ): Promise<Contracts.SimpleMonsterToken>;
 
     // default types
     getContractFactory(

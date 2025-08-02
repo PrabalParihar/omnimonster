@@ -7,6 +7,7 @@ import type {
   FunctionFragment,
   Result,
   Interface,
+  AddressLike,
   ContractRunner,
   ContractMethod,
   Listener,
@@ -17,48 +18,37 @@ import type {
   TypedEventLog,
   TypedListener,
   TypedContractMethod,
-} from "../common";
+} from "../../../common";
 
-export interface MaliciousReentrancyInterface extends Interface {
+export interface ERC2771ContextInterface extends Interface {
   getFunction(
-    nameOrSignature:
-      | "attacked"
-      | "attemptReentrancy"
-      | "htlc"
-      | "preimage"
-      | "targetContract"
+    nameOrSignature: "isTrustedForwarder" | "trustedForwarder"
   ): FunctionFragment;
 
-  encodeFunctionData(functionFragment: "attacked", values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "attemptReentrancy",
-    values: [BytesLike, BytesLike]
+    functionFragment: "isTrustedForwarder",
+    values: [AddressLike]
   ): string;
-  encodeFunctionData(functionFragment: "htlc", values?: undefined): string;
-  encodeFunctionData(functionFragment: "preimage", values?: undefined): string;
   encodeFunctionData(
-    functionFragment: "targetContract",
+    functionFragment: "trustedForwarder",
     values?: undefined
   ): string;
 
-  decodeFunctionResult(functionFragment: "attacked", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "attemptReentrancy",
+    functionFragment: "isTrustedForwarder",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "htlc", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "preimage", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "targetContract",
+    functionFragment: "trustedForwarder",
     data: BytesLike
   ): Result;
 }
 
-export interface MaliciousReentrancy extends BaseContract {
-  connect(runner?: ContractRunner | null): MaliciousReentrancy;
+export interface ERC2771Context extends BaseContract {
+  connect(runner?: ContractRunner | null): ERC2771Context;
   waitForDeployment(): Promise<this>;
 
-  interface: MaliciousReentrancyInterface;
+  interface: ERC2771ContextInterface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
@@ -97,42 +87,23 @@ export interface MaliciousReentrancy extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
-  attacked: TypedContractMethod<[], [boolean], "view">;
-
-  attemptReentrancy: TypedContractMethod<
-    [_contractId: BytesLike, _preimage: BytesLike],
-    [void],
-    "nonpayable"
+  isTrustedForwarder: TypedContractMethod<
+    [forwarder: AddressLike],
+    [boolean],
+    "view"
   >;
 
-  htlc: TypedContractMethod<[], [string], "view">;
-
-  preimage: TypedContractMethod<[], [string], "view">;
-
-  targetContract: TypedContractMethod<[], [string], "view">;
+  trustedForwarder: TypedContractMethod<[], [string], "view">;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
 
   getFunction(
-    nameOrSignature: "attacked"
-  ): TypedContractMethod<[], [boolean], "view">;
+    nameOrSignature: "isTrustedForwarder"
+  ): TypedContractMethod<[forwarder: AddressLike], [boolean], "view">;
   getFunction(
-    nameOrSignature: "attemptReentrancy"
-  ): TypedContractMethod<
-    [_contractId: BytesLike, _preimage: BytesLike],
-    [void],
-    "nonpayable"
-  >;
-  getFunction(
-    nameOrSignature: "htlc"
-  ): TypedContractMethod<[], [string], "view">;
-  getFunction(
-    nameOrSignature: "preimage"
-  ): TypedContractMethod<[], [string], "view">;
-  getFunction(
-    nameOrSignature: "targetContract"
+    nameOrSignature: "trustedForwarder"
   ): TypedContractMethod<[], [string], "view">;
 
   filters: {};
