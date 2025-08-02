@@ -19,6 +19,7 @@ import { WalletDrawer } from "@/components/wallet-drawer"
 import { WalletAtomicOrchestrator } from "@/lib/wallet-atomic-orchestrator"
 import { useWalletClient } from 'wagmi'
 import { keplrWallet } from "@/lib/keplr"
+import { allChains, ChainConfig } from "../../../packages/shared/src/chains"
 
 // Form validation schema
 const swapFormSchema = z.object({
@@ -39,6 +40,7 @@ type SwapFormData = z.infer<typeof swapFormSchema>
 const mockBalances = {
   sepolia: "0.5",
   polygonAmoy: "1000",
+  monadTestnet: "2.5",
   cosmosTestnet: "50"
 }
 
@@ -107,11 +109,18 @@ export function SwapForm() {
   const fromChain = form.watch("fromChain")
   const amount = form.watch("amount")
 
-  const chains = React.useMemo(() => [
-    { value: "sepolia", label: "Ethereum Sepolia", icon: "🔷", balance: mockBalances.sepolia },
-    { value: "polygonAmoy", label: "Polygon Amoy", icon: "🟣", balance: mockBalances.polygonAmoy },
-    { value: "cosmosTestnet", label: "Cosmos Testnet", icon: "⚛️", balance: mockBalances.cosmosTestnet }
-  ], [])
+  const chains = React.useMemo(() => {
+    const chainEntries = Object.entries(allChains) as Array<[string, ChainConfig]>
+    return chainEntries.map(([key, chain]) => ({
+      value: key,
+      label: chain.name,
+      icon: key === 'sepolia' ? '🔷' : 
+            key === 'polygonAmoy' ? '🟣' : 
+            key === 'monadTestnet' ? '🟡' :
+            key === 'cosmosTestnet' ? '⚛️' : '🔗',
+      balance: mockBalances[key as keyof typeof mockBalances] || '0'
+    }))
+  }, [])
 
   // Update max balance when source chain changes
   React.useEffect(() => {
@@ -149,8 +158,8 @@ export function SwapForm() {
 
       // For real swaps, validate wallet connections
       if (!data.dryRun) {
-        const needsEvm = data.fromChain === 'sepolia' || data.fromChain === 'polygonAmoy' || 
-                         data.toChain === 'sepolia' || data.toChain === 'polygonAmoy'
+        const needsEvm = data.fromChain === 'sepolia' || data.fromChain === 'polygonAmoy' || data.fromChain === 'monadTestnet' || 
+                         data.toChain === 'sepolia' || data.toChain === 'polygonAmoy' || data.toChain === 'monadTestnet'
         const needsCosmos = data.fromChain === 'cosmosTestnet' || data.toChain === 'cosmosTestnet'
         
         if (needsEvm && !evmConnected) {
@@ -511,8 +520,8 @@ export function SwapForm() {
                           </div>
                           
                           {/* EVM Wallet Status */}
-                          {(form.watch("fromChain") === 'sepolia' || form.watch("fromChain") === 'polygonAmoy' || 
-                            form.watch("toChain") === 'sepolia' || form.watch("toChain") === 'polygonAmoy') && (
+                          {(form.watch("fromChain") === 'sepolia' || form.watch("fromChain") === 'polygonAmoy' || form.watch("fromChain") === 'monadTestnet' || 
+                            form.watch("toChain") === 'sepolia' || form.watch("toChain") === 'polygonAmoy' || form.watch("toChain") === 'monadTestnet') && (
                             <div className="p-3 rounded-lg border">
                               <div className="flex items-center justify-between">
                                 <div>

@@ -4,33 +4,57 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { WalletDrawer } from '@/components/wallet-drawer'
-import { useWallet } from '@/lib/wallet-context'
-import { MessageCircle, Settings, History, Wallet, ChevronDown } from 'lucide-react'
+import { useWeb3Auth } from '../lib/web3auth-context'
+import { UserProfile } from '@/components/user-profile'
+import { Web3AuthLogin } from '@/components/web3auth-login'
+import { MessageCircle, Settings, History, Wallet, ChevronDown, Zap, BarChart3, Users, Activity, Shield } from 'lucide-react'
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { useState, useEffect } from 'react'
+import * as React from 'react'
 
 const navigation = [
-  { name: 'Chat Mode', href: '/swap', icon: MessageCircle },
-  { name: 'Advanced', href: '/advanced', icon: Settings },
-  { name: 'History', href: '/history', icon: History },
+  { name: 'Swap', href: '/', icon: Zap, description: 'Trade tokens instantly' },
+  { name: 'Monitor', href: '/dashboard', icon: Activity, description: 'Real-time swap monitoring' },
+  { name: 'Pool', href: '/pool', icon: BarChart3, description: 'Pool liquidity management' },
+  { name: 'Health', href: '/health', icon: Shield, description: 'System health checks' },
+  { name: 'Claims', href: '/claims', icon: MessageCircle, description: 'Gasless token claiming' },
 ]
 
 export function Navigation() {
   const pathname = usePathname()
-  const wallet = useWallet()
+  const { isConnected, user, isLoading } = useWeb3Auth()
+  
+  // Use the custom context directly
+  const actualIsConnected = isConnected
+  const walletAddress = user?.email || 'Anonymous'
+  const [showLoginDialog, setShowLoginDialog] = useState(false)
+
+  // Debug navigation state
+  React.useEffect(() => {
+    console.log('Navigation Component State:', {
+      user,
+      isConnected,
+      actualIsConnected,
+      walletAddress,
+      isLoading,
+      userType: typeof user,
+      timestamp: new Date().toISOString()
+    });
+  }, [user, isConnected, walletAddress, isLoading])
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
   const getConnectionStatus = () => {
-    if (wallet.evmConnected && wallet.cosmosConnected) {
-      return { text: 'All Connected', color: 'bg-green-500' }
-    } else if (wallet.evmConnected) {
-      return { text: `EVM: ${formatAddress(wallet.evmAddress!)}`, color: 'bg-blue-500' }
-    } else if (wallet.cosmosConnected) {
-      return { text: `Cosmos: ${formatAddress(wallet.cosmosAddress!)}`, color: 'bg-purple-500' }
+    if (isConnected && walletAddress) {
+      return { 
+        text: formatAddress(walletAddress), 
+        color: 'bg-green-500',
+        fullText: walletAddress
+      }
     }
-    return { text: 'Connect Wallet', color: 'bg-gray-500' }
+    return { text: 'Connect Wallet', color: 'bg-gray-500', fullText: '' }
   }
 
   const connectionStatus = getConnectionStatus()
@@ -43,9 +67,9 @@ export function Navigation() {
           <div className="flex items-center space-x-4">
             <Link href="/" className="flex items-center space-x-2">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-lg font-bold text-primary-foreground">⚡</span>
+                <span className="text-lg font-bold text-primary-foreground">🔄</span>
               </div>
-              <span className="font-bold text-xl">Swap Sage</span>
+              <span className="font-bold text-xl">Fusion Swap</span>
             </Link>
           </div>
 
@@ -73,7 +97,7 @@ export function Navigation() {
             })}
           </div>
 
-          {/* Wallet Connection */}
+          {/* User Connection */}
           <div className="flex items-center space-x-4">
             {/* API Status */}
             <div className="flex items-center space-x-2">
@@ -81,22 +105,26 @@ export function Navigation() {
               <span className="text-xs text-muted-foreground">API Ready</span>
             </div>
 
-            {/* Wallet Button */}
-            <WalletDrawer>
-              <Button
-                variant={wallet.evmConnected || wallet.cosmosConnected ? "outline" : "default"}
-                className="flex items-center space-x-2"
-              >
-                <Wallet className="h-4 w-4" />
-                <span>{connectionStatus.text}</span>
-                {(wallet.evmConnected || wallet.cosmosConnected) && (
-                  <>
-                    <div className={cn("h-2 w-2 rounded-full", connectionStatus.color)} />
-                    <ChevronDown className="h-3 w-3" />
-                  </>
-                )}
-              </Button>
-            </WalletDrawer>
+            {/* User Authentication */}
+            {actualIsConnected ? (
+              <UserProfile compact={true} />
+            ) : (
+              <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="default"
+                    className="flex items-center space-x-2"
+                    disabled={isLoading}
+                  >
+                    <Wallet className="h-4 w-4" />
+                    <span>{isLoading ? 'Connecting...' : 'Connect Wallet'}</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <Web3AuthLogin onClose={() => setShowLoginDialog(false)} />
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
       </div>
