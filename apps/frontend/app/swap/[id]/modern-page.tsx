@@ -81,9 +81,10 @@ function ClaimButton({ swapStatus }: { swapStatus: SwapStatus }) {
         return
       }
 
-      const swapResponse = await fetch(`/api/swaps/${swapStatus.id}`)
+      const swapResponse = await fetch(`/api/swaps/${swapStatus.id}/claim`)
       if (!swapResponse.ok) {
-        throw new Error('Failed to fetch swap details')
+        const errorData = await swapResponse.json()
+        throw new Error(errorData.error || 'Failed to fetch swap details')
       }
       
       const swapData = await swapResponse.json()
@@ -106,7 +107,7 @@ function ClaimButton({ swapStatus }: { swapStatus: SwapStatus }) {
       const chainConfigs: Record<string, { chainId: string; htlcAddress: string; name: string }> = {
         sepolia: {
           chainId: '0xaa36a7',
-          htlcAddress: '0x89f4e5B11264b6e1FcEeE07E840d3A88Ba0b23C7',
+          htlcAddress: '0x5d981ca300DDAAb10D2bD98E3115264C1A2c168D',
           name: 'Sepolia'
         },
         monadTestnet: {
@@ -150,16 +151,27 @@ function ClaimButton({ swapStatus }: { swapStatus: SwapStatus }) {
         }
       }
 
-      const htlcABI = [
-        'function claim(bytes32 contractId, bytes32 preimage) external',
-        'function getDetails(bytes32 contractId) view returns (address token, address beneficiary, address originator, bytes32 hashLock, uint256 timelock, uint256 value, uint8 state)'
-      ]
+      // Import the unified HTLC client
+      const { UnifiedHTLCClient } = await import('@/lib/htlc-client');
+      
+      const htlcClient = new UnifiedHTLCClient(chainConfig.htlcAddress, signer);
 
-      const htlc = new ethers.Contract(chainConfig.htlcAddress, htlcABI, signer)
+      // Debug logging
+      console.log('Claiming HTLC:', {
+        contractId: swapData.poolHtlcContract,
+        htlcAddress: chainConfig.htlcAddress,
+        preimage: swapData.preimage
+      });
 
-      const details = await htlc.getDetails(swapData.poolHtlcContract)
-      if (details.state.toString() !== '1') {
-        throw new Error(`HTLC not claimable. State: ${details.state} (0=INVALID, 1=OPEN, 2=CLAIMED, 3=REFUNDED)`)
+      // Get HTLC details using unified client
+      const details = await htlcClient.getHTLCDetails(swapData.poolHtlcContract);
+      
+      console.log('HTLC details:', details);
+      console.log('Contract type detected:', htlcClient.getContractType());
+      console.log('State:', details.state, htlcClient.getStateDescription(details.state));
+      
+      if (details.state !== 1) {
+        throw new Error(`HTLC not claimable. State: ${details.state} (${htlcClient.getStateDescription(details.state)})`)
       }
 
       toast({
@@ -167,7 +179,7 @@ function ClaimButton({ swapStatus }: { swapStatus: SwapStatus }) {
         description: "Please confirm the transaction in your wallet",
       })
 
-      const tx = await htlc.claim(swapData.poolHtlcContract, swapData.preimage)
+      const tx = await htlcClient.claim(swapData.poolHtlcContract, swapData.preimage)
       
       toast({
         title: "Transaction Sent",
@@ -243,7 +255,7 @@ function ClaimButton({ swapStatus }: { swapStatus: SwapStatus }) {
           
           <h3 className="text-2xl font-bold mb-2">Ready to Claim!</h3>
           <p className="text-muted-foreground mb-6">
-            Your {swapStatus.targetAmount} {swapStatus.destinationToken} tokens are waiting for you
+            Your <span className="font-semibold">{formatTokenAmount(swapStatus.targetAmount)} {swapStatus.destinationToken}</span> tokens are waiting for you
           </p>
           
           <Button 
@@ -296,31 +308,35 @@ export default function ModernSwapStatusPage({ params }: SwapStatusPageProps) {
       
       const data = await response.json()
       
+      // Parse source and target tokens which are in format "chain:token"
+      const [sourceChain, sourceToken] = (data.sourceToken || '').split(':')
+      const [destChain, destToken] = (data.targetToken || '').split(':')
+      
       const swapStatus: SwapStatus = {
         id: data.id,
         status: data.status,
-        sourceChain: data.sourceChain || data.source_chain,
-        sourceToken: data.sourceToken || data.source_token,
-        destinationChain: data.destinationChain || data.target_chain,
-        destinationToken: data.destinationToken || data.target_token,
-        sourceAmount: data.sourceAmount || data.source_amount,
-        targetAmount: data.targetAmount || data.target_amount,
-        userAddress: data.userAddress || data.user_address,
-        beneficiaryAddress: data.beneficiaryAddress || data.beneficiary_address,
-        htlcAddress: data.htlcAddress || data.htlc_address,
-        secretHash: data.secretHash || data.secret_hash,
-        timelock: data.timelock || data.timelock_seconds,
-        createdAt: data.createdAt || data.created_at,
-        expiresAt: data.expiresAt || data.expires_at,
+        sourceChain: sourceChain || data.sourceChain || data.source_chain || '',
+        sourceToken: sourceToken || data.sourceToken || data.source_token || '',
+        destinationChain: destChain || data.destinationChain || data.target_chain || '',
+        destinationToken: destToken || data.destinationToken || data.target_token || '',
+        sourceAmount: data.sourceAmount || data.source_amount || '0',
+        targetAmount: data.expectedAmount || data.targetAmount || data.target_amount || '0',
+        userAddress: data.userAddress || data.user_address || '',
+        beneficiaryAddress: data.userAddress || data.beneficiaryAddress || data.beneficiary_address || '',
+        htlcAddress: data.userHtlcContract || data.htlcAddress || data.htlc_address || '',
+        secretHash: data.hashLock || data.secretHash || data.secret_hash || '',
+        timelock: data.expirationTime || data.timelock || data.timelock_seconds || 0,
+        createdAt: data.createdAt || data.created_at || '',
+        expiresAt: data.expirationTime ? new Date(parseInt(data.expirationTime) * 1000).toISOString() : data.expiresAt || data.expires_at || '',
         fees: data.fees || {
           networkFee: '0.01',
           exchangeFee: '0.03',
           totalFee: '0.04'
         },
         route: data.route || {
-          description: `${data.sourceToken || data.source_token} on ${data.sourceChain || data.source_chain} → ${data.destinationToken || data.target_token} on ${data.destinationChain || data.target_chain}`,
+          description: `${sourceToken} on ${sourceChain} → ${destToken} on ${destChain}`,
           steps: [
-            `Lock ${data.sourceToken || data.source_token} tokens`,
+            `Lock ${sourceToken} tokens`,
             `Validate liquidity`,
             `Deploy HTLC contract`,
             `Claim tokens`
@@ -366,6 +382,8 @@ export default function ModernSwapStatusPage({ params }: SwapStatusPageProps) {
   }
 
   const getTimeRemaining = (expiresAt: string) => {
+    if (!expiresAt) return 'N/A'
+    
     const now = new Date().getTime()
     const expiry = new Date(expiresAt).getTime()
     const diff = expiry - now
@@ -375,7 +393,29 @@ export default function ModernSwapStatusPage({ params }: SwapStatusPageProps) {
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
     
-    return `${hours}h ${minutes}m`
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`
+    } else if (minutes > 0) {
+      return `${minutes}m`
+    } else {
+      return 'Less than 1m'
+    }
+  }
+
+  const formatTokenAmount = (amount: string, decimals: number = 18) => {
+    try {
+      if (!amount || amount === '0') return '0'
+      const formatted = ethers.formatUnits(amount, decimals)
+      // Format to max 6 decimal places
+      const num = parseFloat(formatted)
+      if (num === 0) return '0'
+      return num.toLocaleString('en-US', { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 6 
+      })
+    } catch (e) {
+      return amount
+    }
   }
 
   if (isLoading) {
@@ -494,7 +534,7 @@ export default function ModernSwapStatusPage({ params }: SwapStatusPageProps) {
                 </div>
 
                 {/* Swap Flow */}
-                <div className="bg-muted/50 rounded-xl p-6">
+                <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-xl p-8 border border-white/10">
                   <div className="grid md:grid-cols-3 gap-6 items-center">
                     {/* From */}
                     <motion.div 
@@ -503,14 +543,18 @@ export default function ModernSwapStatusPage({ params }: SwapStatusPageProps) {
                       transition={{ delay: 0.2 }}
                       className="text-center"
                     >
-                      <div className="text-4xl mb-3">
-                        {swapStatus.sourceChain === 'sepolia' ? '🔷' : 
-                         swapStatus.sourceChain === 'monadTestnet' ? '🟡' : '🟣'}
+                      <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center mb-4">
+                        <span className="text-4xl">
+                          {!swapStatus.sourceChain ? '❓' :
+                           swapStatus.sourceChain === 'sepolia' ? '🔷' : 
+                           swapStatus.sourceChain === 'monadTestnet' ? '🟡' : '🟣'}
+                        </span>
                       </div>
-                      <div className="font-bold text-xl">{swapStatus.sourceAmount}</div>
-                      <div className="text-muted-foreground">{swapStatus.sourceToken}</div>
-                      <div className="text-sm text-muted-foreground capitalize mt-1">
-                        {swapStatus.sourceChain}
+                      <div className="font-bold text-2xl mb-1">{formatTokenAmount(swapStatus.sourceAmount)}</div>
+                      <div className="text-lg font-medium">{swapStatus.sourceToken}</div>
+                      <div className="text-sm text-muted-foreground capitalize mt-2 flex items-center justify-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        {swapStatus.sourceChain ? swapStatus.sourceChain.replace('Testnet', ' Testnet') : 'Unknown Chain'}
                       </div>
                     </motion.div>
 
@@ -521,8 +565,11 @@ export default function ModernSwapStatusPage({ params }: SwapStatusPageProps) {
                       transition={{ delay: 0.3 }}
                       className="flex justify-center"
                     >
-                      <div className="p-3 rounded-full bg-primary/10">
-                        <ArrowRight className="h-6 w-6 text-primary" />
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-xl opacity-50"></div>
+                        <div className="relative p-4 rounded-full bg-gradient-to-r from-blue-500 to-purple-500">
+                          <ArrowRight className="h-8 w-8 text-white" />
+                        </div>
                       </div>
                     </motion.div>
 
@@ -533,14 +580,18 @@ export default function ModernSwapStatusPage({ params }: SwapStatusPageProps) {
                       transition={{ delay: 0.4 }}
                       className="text-center"
                     >
-                      <div className="text-4xl mb-3">
-                        {swapStatus.destinationChain === 'sepolia' ? '🔷' : 
-                         swapStatus.destinationChain === 'monadTestnet' ? '🟡' : '🟣'}
+                      <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-600/20 flex items-center justify-center mb-4">
+                        <span className="text-4xl">
+                          {!swapStatus.destinationChain ? '❓' :
+                           swapStatus.destinationChain === 'sepolia' ? '🔷' : 
+                           swapStatus.destinationChain === 'monadTestnet' ? '🟡' : '🟣'}
+                        </span>
                       </div>
-                      <div className="font-bold text-xl">{swapStatus.targetAmount}</div>
-                      <div className="text-muted-foreground">{swapStatus.destinationToken}</div>
-                      <div className="text-sm text-muted-foreground capitalize mt-1">
-                        {swapStatus.destinationChain}
+                      <div className="font-bold text-2xl mb-1">{formatTokenAmount(swapStatus.targetAmount)}</div>
+                      <div className="text-lg font-medium">{swapStatus.destinationToken}</div>
+                      <div className="text-sm text-muted-foreground capitalize mt-2 flex items-center justify-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        {swapStatus.destinationChain ? swapStatus.destinationChain.replace('Testnet', ' Testnet') : 'Unknown Chain'}
                       </div>
                     </motion.div>
                   </div>
@@ -606,41 +657,97 @@ export default function ModernSwapStatusPage({ params }: SwapStatusPageProps) {
               transition={{ delay: 0.2 }}
             >
               <Card className="hover-lift">
-                <CardHeader>
+                <CardHeader className="bg-gradient-to-r from-blue-500/5 to-purple-500/5">
                   <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
+                    <Shield className="h-5 w-5 text-blue-500" />
                     Swap Details
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Time Remaining</span>
-                    <div className="flex items-center gap-2">
-                      <Timer className="h-4 w-4" />
-                      <span className="font-medium">{getTimeRemaining(swapStatus.expiresAt)}</span>
+                <CardContent className="space-y-4 pt-6">
+                  <div className="p-4 rounded-lg bg-muted/50 border border-white/5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        <Timer className="h-4 w-4" />
+                        Time Remaining
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {swapStatus.status === 'USER_CLAIMED' ? (
+                          <Badge variant="secondary" className="bg-green-500/20 text-green-500">
+                            Completed
+                          </Badge>
+                        ) : (
+                          <span className="font-mono font-medium text-lg">
+                            {getTimeRemaining(swapStatus.expiresAt)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
-                  <Separator />
-                  
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Beneficiary</span>
-                      <code className="text-xs bg-muted px-2 py-1 rounded">
-                        {swapStatus.beneficiaryAddress ? 
-                          `${swapStatus.beneficiaryAddress.slice(0, 6)}...${swapStatus.beneficiaryAddress.slice(-4)}` : 
-                          'N/A'
-                        }
-                      </code>
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Beneficiary</span>
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs bg-muted px-3 py-1.5 rounded-full font-mono">
+                            {swapStatus.beneficiaryAddress ? 
+                              `${swapStatus.beneficiaryAddress.slice(0, 6)}...${swapStatus.beneficiaryAddress.slice(-4)}` : 
+                              'N/A'
+                            }
+                          </code>
+                          {swapStatus.beneficiaryAddress && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => copyToClipboard(swapStatus.beneficiaryAddress, 'Address')}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                    
                     {swapStatus.htlcAddress && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">HTLC Contract</span>
-                        <code className="text-xs bg-muted px-2 py-1 rounded">
-                          {swapStatus.htlcAddress.slice(0, 6)}...{swapStatus.htlcAddress.slice(-4)}
-                        </code>
+                      <div className="p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">HTLC Contract</span>
+                          <div className="flex items-center gap-2">
+                            <code className="text-xs bg-muted px-3 py-1.5 rounded-full font-mono">
+                              {swapStatus.htlcAddress.slice(0, 6)}...{swapStatus.htlcAddress.slice(-4)}
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => copyToClipboard(swapStatus.htlcAddress!, 'Contract')}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     )}
+                    
+                    <div className="p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Swap ID</span>
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs bg-muted px-3 py-1.5 rounded-full font-mono">
+                            {swapStatus.id.slice(0, 8)}...
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => copyToClipboard(swapStatus.id, 'Swap ID')}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -715,8 +822,8 @@ export default function ModernSwapStatusPage({ params }: SwapStatusPageProps) {
                     <h3 className="text-2xl font-bold text-green-600 dark:text-green-400 mb-2">
                       Swap Completed Successfully!
                     </h3>
-                    <p className="text-muted-foreground">
-                      You have received {swapStatus.targetAmount} {swapStatus.destinationToken}
+                    <p className="text-lg text-muted-foreground">
+                      You have received <span className="font-bold text-green-600 dark:text-green-400">{formatTokenAmount(swapStatus.targetAmount)} {swapStatus.destinationToken}</span>
                     </p>
                   </CardContent>
                 </Card>
