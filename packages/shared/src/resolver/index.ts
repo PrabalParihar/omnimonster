@@ -392,7 +392,7 @@ private async processSwap(swap: SwapRequest): Promise<void> {
       console.log(`     Within tolerance: ${difference <= tolerance}`);
       
       if (difference > tolerance) {
-        throw new Error(`User HTLC amount mismatch. Expected: ${ethers.formatEther(expectedValueBigInt)} tokens (${expectedValueBigInt} wei), Got: ${ethers.formatEther(contractValueWei)} tokens (${contractValueWei} wei), Difference: ${ethers.formatEther(difference.toString())} tokens (tolerance: ${ethers.formatEther(tolerance.toString())})`);
+        throw new Error(`User HTLC amount mismatch. Expected: ${expectedValueDecimal} tokens (${expectedValueWei} wei), Got: ${ethers.formatEther(contractValueWei)} tokens (${contractValueWei} wei), Difference: ${ethers.formatEther(difference.toString())} tokens (tolerance: ${ethers.formatEther(tolerance.toString())})`);
       }
       
       console.log(`✅ Amount validation passed within tolerance`);
