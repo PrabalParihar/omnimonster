@@ -328,7 +328,7 @@ export default function FaucetPage() {
               <span className="text-gradient">Token Faucet</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Get test tokens to try out Swap Sage on testnet networks
+              Get test tokens to try out Omnimonster on testnet networks
             </p>
           </motion.div>
 
