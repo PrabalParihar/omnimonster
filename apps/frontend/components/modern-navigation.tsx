@@ -95,13 +95,13 @@ export function ModernNavigation() {
                   <Sparkles className="h-6 w-6 text-white" />
                 </motion.div>
                 <span className="font-bold text-2xl">
-                  <span className="text-gradient">Swap Sage</span>
+                  <span className="text-gradient">Omnimonster</span>
                 </span>
               </Link>
             </motion.div>
 
             {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-1">
+            <div className="hidden lg:flex items-center space-x-3">
               {navigation.map((item, index) => {
                 const Icon = item.icon
                 const isActive = pathname === item.href

@@ -30,7 +30,7 @@ const swapFormSchema = z.object({
   }),
   beneficiary: z.string().min(1, "Beneficiary address is required"),
   timelock: z.string().default("3600"),
-  dryRun: z.boolean().default(true)
+  dryRun: z.boolean().default(false)
 })
 
 type SwapFormData = z.infer<typeof swapFormSchema>
@@ -82,7 +82,7 @@ export function UpdatedSwapForm() {
       amount: "",
       beneficiary: address || "",
       timelock: "3600",
-      dryRun: true
+      dryRun: false
     }
   })
 
@@ -547,31 +547,7 @@ export function UpdatedSwapForm() {
                 )}
               />
 
-              {/* Dry Run Toggle */}
-              <FormField
-                control={form.control}
-                name="dryRun"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">
-                        Test Mode (Simulation)
-                      </FormLabel>
-                      <FormDescription>
-                        Test the swap without executing real transactions
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <input
-                        type="checkbox"
-                        checked={field.value}
-                        onChange={field.onChange}
-                        className="h-4 w-4 rounded border"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              {/* Dry run mode removed - now always executes real transactions */}
 
               {/* Swap Pair Status */}
               {supportedPair ? (
@@ -623,7 +599,7 @@ export function UpdatedSwapForm() {
                 ) : (
                   <>
                     <ArrowRightLeft className="mr-2 h-4 w-4" />
-                    {form.watch("dryRun") ? "Simulate Swap" : "Execute Cross-Chain Swap"}
+                    Execute Cross-Chain Swap
                   </>
                 )}
               </Button>
