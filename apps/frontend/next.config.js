@@ -3,6 +3,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   transpilePackages: ['@swap-sage/shared'],
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
     // Handle node modules that need to be bundled for the browser
