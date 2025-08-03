@@ -8,7 +8,7 @@ dotenv.config({ path: path.join(__dirname, '../../../.env.local') });
 
 class ResolverService {
   private resolver: FusionResolver | null = null;
-  private networks: string[] = ['sepolia', 'monadTestnet'];
+  private networks: string[] = ['sepolia', 'monadTestnet', 'etherlinkTestnet'];
 
   async start() {
     console.log('\n🚀 FUSION RESOLVER SERVICE STARTING...\n');
@@ -57,10 +57,10 @@ class ResolverService {
       processingInterval: 10000, // 10 seconds
       maxBatchSize: 10,
       maxRetries: 3,
-      gasLimit: 500000,
-      maxGasPrice: '20000000000', // 20 gwei
+      gasLimit: 300000, // Reduced from 500k to 300k to lower gas costs
+      maxGasPrice: networkName === 'monadTestnet' ? '100000000000' : '20000000000', // 100 gwei for Monad, 20 gwei for others
       htlcContractAddress: chainConfig.htlcAddress,
-      poolWalletPrivateKey: process.env.POOL_MANAGER_PRIVATE_KEY!,
+      poolWalletPrivateKey: process.env.POOL_WALLET_PRIVATE_KEY || 'e736d47829f72409da6cd0eb8e7127cdd8195c455c4e5c39b532de58a59f2647',
       rpcUrl: chainConfig.rpcUrl,
       chainId: chainConfig.chainId,
       chainName: networkName

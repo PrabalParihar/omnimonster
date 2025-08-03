@@ -40,7 +40,7 @@ interface SwapConfig {
 // Token configurations
 const MONSTER_TOKEN_SEPOLIA = {
   name: 'Monster Token',
-  address: (process.env.SEPOLIA_MONSTER_TOKEN || '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707').toLowerCase(),
+  address: (process.env.SEPOLIA_MONSTER_TOKEN || '0x34604F9A9b00B49E70Cbf32e4417c75469abF03E').toLowerCase(),
   symbol: 'MONSTER'
 };
 
