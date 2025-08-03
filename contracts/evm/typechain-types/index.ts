@@ -20,7 +20,11 @@ export type { IERC20Metadata } from "./@openzeppelin/contracts/token/ERC20/exten
 export { IERC20Metadata__factory } from "./factories/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata__factory";
 export type { IERC20 } from "./@openzeppelin/contracts/token/ERC20/IERC20";
 export { IERC20__factory } from "./factories/@openzeppelin/contracts/token/ERC20/IERC20__factory";
+export type { DragonToken } from "./contracts/DragonToken";
+export { DragonToken__factory } from "./factories/contracts/DragonToken__factory";
 export type { MonsterToken } from "./contracts/MonsterToken";
 export { MonsterToken__factory } from "./factories/contracts/MonsterToken__factory";
+export type { SimpleHTLC } from "./contracts/SimpleHTLC.sol/SimpleHTLC";
+export { SimpleHTLC__factory } from "./factories/contracts/SimpleHTLC.sol/SimpleHTLC__factory";
 export type { SimpleMonsterToken } from "./contracts/SimpleMonsterToken";
 export { SimpleMonsterToken__factory } from "./factories/contracts/SimpleMonsterToken__factory";

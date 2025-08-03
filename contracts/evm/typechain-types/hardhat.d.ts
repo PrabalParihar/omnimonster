@@ -42,9 +42,21 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC20__factory>;
     getContractFactory(
+      name: "DragonToken",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.DragonToken__factory>;
+    getContractFactory(
       name: "MonsterToken",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.MonsterToken__factory>;
+    getContractFactory(
+      name: "IERC20",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IERC20__factory>;
+    getContractFactory(
+      name: "SimpleHTLC",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.SimpleHTLC__factory>;
     getContractFactory(
       name: "SimpleMonsterToken",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -86,10 +98,25 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IERC20>;
     getContractAt(
+      name: "DragonToken",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.DragonToken>;
+    getContractAt(
       name: "MonsterToken",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.MonsterToken>;
+    getContractAt(
+      name: "IERC20",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IERC20>;
+    getContractAt(
+      name: "SimpleHTLC",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.SimpleHTLC>;
     getContractAt(
       name: "SimpleMonsterToken",
       address: string | ethers.Addressable,
@@ -125,9 +152,21 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
+      name: "DragonToken",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.DragonToken>;
+    deployContract(
       name: "MonsterToken",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MonsterToken>;
+    deployContract(
+      name: "IERC20",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC20>;
+    deployContract(
+      name: "SimpleHTLC",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.SimpleHTLC>;
     deployContract(
       name: "SimpleMonsterToken",
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -169,10 +208,25 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IERC20>;
     deployContract(
+      name: "DragonToken",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.DragonToken>;
+    deployContract(
       name: "MonsterToken",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.MonsterToken>;
+    deployContract(
+      name: "IERC20",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IERC20>;
+    deployContract(
+      name: "SimpleHTLC",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.SimpleHTLC>;
     deployContract(
       name: "SimpleMonsterToken",
       args: any[],

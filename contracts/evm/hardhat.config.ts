@@ -10,6 +10,7 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x" + "0".repeat(64);
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "";
 const POLYGON_AMOY_RPC_URL = process.env.POLYGON_AMOY_RPC_URL || "";
 const GOERLI_RPC_URL = process.env.GOERLI_RPC_URL || "";
+const ETHERLINK_RPC_URL = process.env.ETHERLINK_RPC_URL || "https://node.ghostnet.etherlink.com";
 
 // Custom task for deployment
 task("deploy:evm", "Deploy HTLC contract to EVM network")
@@ -61,6 +62,11 @@ const config: HardhatUserConfig = {
       url: "https://testnet-rpc.monad.xyz",
       accounts: PRIVATE_KEY !== "0x" + "0".repeat(64) ? [PRIVATE_KEY] : [],
       chainId: 10143,
+    },
+    etherlinkTestnet: {
+      url: ETHERLINK_RPC_URL,
+      accounts: PRIVATE_KEY !== "0x" + "0".repeat(64) ? [PRIVATE_KEY] : [],
+      chainId: 128123,
     },
   },
   paths: {
