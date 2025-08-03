@@ -46,8 +46,8 @@ const SWAP_SAGE_HTLC_ABI = [
     "type": "function"
   },
   {
-    "inputs": [{ "internalType": "bytes32", "name": "_contractId", "type": "bytes32" }],
-    "name": "getDetails",
+    "inputs": [{ "internalType": "bytes32", "name": "", "type": "bytes32" }],
+    "name": "contracts",
     "outputs": [
       { "internalType": "address", "name": "token", "type": "address" },
       { "internalType": "address", "name": "beneficiary", "type": "address" },
@@ -92,28 +92,26 @@ const SWAP_SAGE_HTLC_ABI = [
       { "indexed": false, "internalType": "bytes32", "name": "hashLock", "type": "bytes32" },
       { "indexed": false, "internalType": "uint256", "name": "timelock", "type": "uint256" }
     ],
-    "name": "Funded",
+    "name": "HTLCCreated",
     "type": "event"
   },
   {
     "anonymous": false,
     "inputs": [
       { "indexed": true, "internalType": "bytes32", "name": "contractId", "type": "bytes32" },
-      { "indexed": true, "internalType": "address", "name": "beneficiary", "type": "address" },
-      { "indexed": false, "internalType": "bytes32", "name": "preimage", "type": "bytes32" },
-      { "indexed": false, "internalType": "uint256", "name": "value", "type": "uint256" }
+      { "indexed": true, "internalType": "address", "name": "claimer", "type": "address" },
+      { "indexed": false, "internalType": "bytes32", "name": "preimage", "type": "bytes32" }
     ],
-    "name": "Claimed",
+    "name": "HTLCClaimed",
     "type": "event"
   },
   {
     "anonymous": false,
     "inputs": [
       { "indexed": true, "internalType": "bytes32", "name": "contractId", "type": "bytes32" },
-      { "indexed": true, "internalType": "address", "name": "originator", "type": "address" },
-      { "indexed": false, "internalType": "uint256", "name": "value", "type": "uint256" }
+      { "indexed": true, "internalType": "address", "name": "refunder", "type": "address" }
     ],
-    "name": "Refunded",
+    "name": "HTLCRefunded",
     "type": "event"
   }
 ] as const;
@@ -257,7 +255,7 @@ export class EvmHTLCClient {
    * Get HTLC details
    */
   async getDetails(contractId: string): Promise<HTLCDetails> {
-    const result = await this.contract.getDetails(contractId);
+    const result = await this.contract.contracts(contractId);
     
     return {
       contractId,
@@ -297,7 +295,7 @@ export class EvmHTLCClient {
    * Listen for Funded events
    */
   onFunded(callback: (event: FundedEvent) => void): void {
-    this.contract.on('Funded', (contractId: any, originator: any, beneficiary: any, token: any, value: any, hashLock: any, timelock: any, event: any) => {
+    this.contract.on('HTLCCreated', (contractId: any, originator: any, beneficiary: any, token: any, value: any, hashLock: any, timelock: any, event: any) => {
       callback({
         contractId,
         originator,
@@ -316,12 +314,12 @@ export class EvmHTLCClient {
    * Listen for Claimed events
    */
   onClaimed(callback: (event: ClaimedEvent) => void): void {
-    this.contract.on('Claimed', (contractId: any, beneficiary: any, preimage: any, value: any, event: any) => {
+    this.contract.on('HTLCClaimed', (contractId: any, claimer: any, preimage: any, event: any) => {
       callback({
         contractId,
-        beneficiary,
+        beneficiary: claimer,
         preimage,
-        value: value.toString(),
+        value: '0', // HTLCClaimed event doesn't include value
         blockNumber: event.blockNumber,
         transactionHash: event.transactionHash
       });

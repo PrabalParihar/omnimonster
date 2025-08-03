@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 import { FusionDatabase, FusionDAO, SwapRequest, SwapStatus, ResolverOperationType, OperationStatus } from '../database';
 import { EventEmitter } from 'events';
 import { getToken } from '../tokens';
+import { GasMonitor, GasBalance } from './gas-monitor';
 
 export interface ResolverConfig {
   processingInterval: number; // ms
@@ -31,6 +32,8 @@ export interface PriceInfo {
   lastUpdated: Date;
 }
 
+export { GasMonitor, GasBalance } from './gas-monitor';
+
 export class FusionResolver extends EventEmitter {
   private dao: FusionDAO;
   private provider: ethers.JsonRpcProvider;
@@ -39,6 +42,9 @@ export class FusionResolver extends EventEmitter {
   private isProcessing = false;
   private processingTimer?: NodeJS.Timeout;
   private chainName: string;
+  private gasMonitor: GasMonitor;
+  private lastGasCheck: number = 0;
+  private gasCheckInterval = 60000; // Check gas every minute
 
   constructor(
     private config: ResolverConfig,
@@ -49,6 +55,7 @@ export class FusionResolver extends EventEmitter {
     this.dao = new FusionDAO(database);
     this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
     this.poolWallet = new ethers.Wallet(config.poolWalletPrivateKey, this.provider);
+    this.gasMonitor = new GasMonitor();
     
     // Initialize HTLC contract (we'll need the ABI)
     const htlcABI = [
@@ -116,6 +123,12 @@ export class FusionResolver extends EventEmitter {
     this.isProcessing = true;
 
     try {
+      // Check gas balance periodically
+      if (Date.now() - this.lastGasCheck > this.gasCheckInterval) {
+        await this.checkGasBalance();
+        this.lastGasCheck = Date.now();
+      }
+
       // Get pending swaps
       const pendingSwaps = await this.dao.getPendingSwaps(this.config.maxBatchSize);
       
@@ -125,8 +138,18 @@ export class FusionResolver extends EventEmitter {
 
       console.log(`Processing ${pendingSwaps.length} pending swaps`);
 
-      // Process each swap
-      for (const swap of pendingSwaps) {
+      // Filter out invalid swaps before processing
+      const validSwaps = pendingSwaps.filter(swap => this.isSwapValid(swap));
+      const invalidSwaps = pendingSwaps.filter(swap => !this.isSwapValid(swap));
+
+      // Cancel invalid swaps
+      for (const invalidSwap of invalidSwaps) {
+        console.log(`Cancelling invalid swap ${invalidSwap.id}: amount=${invalidSwap.sourceAmount}`);
+        await this.dao.updateSwapRequest(invalidSwap.id, { status: SwapStatus.CANCELLED });
+      }
+
+      // Process valid swaps
+      for (const swap of validSwaps) {
         try {
           await this.processSwap(swap);
         } catch (error) {
@@ -137,6 +160,59 @@ export class FusionResolver extends EventEmitter {
     } finally {
       this.isProcessing = false;
     }
+  }
+
+  /**
+   * Check gas balance and emit warnings
+   */
+  private async checkGasBalance(): Promise<void> {
+    try {
+      const gasBalance = await this.gasMonitor.checkGasBalance(
+        this.provider,
+        this.poolWallet.address,
+        this.chainName
+      );
+
+      const warning = this.gasMonitor.getWarningMessage(gasBalance);
+      if (warning) {
+        console.warn(warning);
+        this.emit('lowGasBalance', gasBalance);
+      }
+
+      // Log current balance
+      console.log(`💰 Gas balance on ${this.chainName}: ${gasBalance.formatted}`);
+    } catch (error) {
+      console.error('Failed to check gas balance:', error);
+    }
+  }
+
+  /**
+   * Validate if a swap should be processed
+   */
+  private isSwapValid(swap: SwapRequest): boolean {
+    // Check if amount is valid
+    const amount = BigInt(swap.sourceAmount || '0');
+    if (amount <= 0) {
+      console.log(`Swap ${swap.id} has invalid amount: ${swap.sourceAmount}`);
+      return false;
+    }
+
+    // Check if HTLC contract is valid
+    if (!swap.userHtlcContract || swap.userHtlcContract.length !== 66) {
+      console.log(`Swap ${swap.id} has invalid HTLC contract: ${swap.userHtlcContract}`);
+      return false;
+    }
+
+    // Check if swap has been pending too long (24 hours)
+    const createdAt = new Date(swap.createdAt).getTime();
+    const now = Date.now();
+    const maxPendingTime = 24 * 60 * 60 * 1000; // 24 hours
+    if (now - createdAt > maxPendingTime) {
+      console.log(`Swap ${swap.id} has been pending too long`);
+      return false;
+    }
+
+    return true;
   }
 
     /**
@@ -367,14 +443,12 @@ private async processSwap(swap: SwapRequest): Promise<void> {
 
       // Convert amounts to proper units for comparison
       const contractValueWei = contractDetails.value.toString();
-      const expectedValueDecimal = swap.sourceAmount.toString();
-      
-      // Convert expected value from decimal to wei (assuming 18 decimals for ERC20 tokens)
-      const expectedValueWei = ethers.parseUnits(expectedValueDecimal, 18).toString();
+      // Amount is already stored in wei in the database
+      const expectedValueWei = swap.sourceAmount.toString();
       
       console.log(`💰 Amount validation:`);
       console.log(`   Contract has: ${contractValueWei} wei (${ethers.formatEther(contractValueWei)} tokens)`);
-      console.log(`   Expected: ${expectedValueDecimal} tokens (${expectedValueWei} wei)`);
+      console.log(`   Expected: ${expectedValueWei} wei (${ethers.formatEther(expectedValueWei)} tokens)`);
       
       // Allow for small tolerance (0.1%) to account for gas fees and rounding
       const tolerance = BigInt(expectedValueWei) / 1000n; // 0.1% tolerance
@@ -392,12 +466,10 @@ private async processSwap(swap: SwapRequest): Promise<void> {
       console.log(`     Within tolerance: ${difference <= tolerance}`);
       
       if (difference > tolerance) {
-        throw new Error(`User HTLC amount mismatch. Expected: ${expectedValueDecimal} tokens (${expectedValueWei} wei), Got: ${ethers.formatEther(contractValueWei)} tokens (${contractValueWei} wei), Difference: ${ethers.formatEther(difference.toString())} tokens (tolerance: ${ethers.formatEther(tolerance.toString())})`);
+        throw new Error(`User HTLC amount mismatch. Expected: ${expectedValueWei} wei (${ethers.formatEther(expectedValueWei)} tokens), Got: ${contractValueWei} wei (${ethers.formatEther(contractValueWei)} tokens), Difference: ${difference} wei (tolerance: ${tolerance} wei)`);
       }
       
       console.log(`✅ Amount validation passed within tolerance`);
-      console.log(`   Actual: ${ethers.formatEther(contractValueWei)} tokens`);
-      console.log(`   Expected: ${expectedValueDecimal} tokens`);
       console.log(`   Difference: ${ethers.formatEther(difference.toString())} tokens (${Number(difference * 10000n / expectedValueBigInt) / 100}%)`);
 
       if (contractDetails.hashLock !== swap.hashLock) {
@@ -504,13 +576,16 @@ private async processSwap(swap: SwapRequest): Promise<void> {
 
     // TEMPORARY: For testing, allow demo token pairs even if not in supported_tokens table
     if ((swap.sourceToken === 'sepolia:MONSTER' && swap.targetToken === 'monadTestnet:OMNI') ||
-        (swap.sourceToken === 'sepolia:MONSTER' && swap.targetToken === 'monadTestnet:OMNIMONSTER')) {
+        (swap.sourceToken === 'sepolia:MONSTER' && swap.targetToken === 'monadTestnet:OMNIMONSTER') ||
+        (swap.sourceToken === 'monadTestnet:OMNIMONSTER' && swap.targetToken === 'sepolia:MONSTER')) {
       console.log(`✅ TEMPORARY: Allowing demo token pair for pricing validation`);
       console.log(`   Using default decimals (18) for both tokens`);
       
       // Mock token data for demo tokens
-      const mockSourceToken = { decimals: 18, symbol: 'MONSTER', min_swap_amount: '1000000000000000000', max_swap_amount: '1000000000000000000000' };
-      const mockTargetToken = { decimals: 18, symbol: swap.targetToken.includes('OMNIMONSTER') ? 'OMNIMONSTER' : 'OMNI', min_swap_amount: '1000000000000000000', max_swap_amount: '1000000000000000000000' };
+      const sourceSymbol = swap.sourceToken.includes('OMNIMONSTER') ? 'OMNIMONSTER' : 'MONSTER';
+      const targetSymbol = swap.targetToken.includes('OMNIMONSTER') ? 'OMNIMONSTER' : 'MONSTER';
+      const mockSourceToken = { decimals: 18, symbol: sourceSymbol, min_swap_amount: '1000000000000000000', max_swap_amount: '1000000000000000000000' };
+      const mockTargetToken = { decimals: 18, symbol: targetSymbol, min_swap_amount: '1000000000000000000', max_swap_amount: '1000000000000000000000' };
       
       // Continue with mock tokens
       const sourceAmountNum = parseFloat(swap.sourceAmount) / Math.pow(10, mockSourceToken.decimals);
@@ -774,7 +849,9 @@ private async processSwap(swap: SwapRequest): Promise<void> {
   /**
    * Claim tokens from user HTLC
    */
-  private async claimUserTokens(swap: SwapRequest): Promise<void> {
+  private async claimUserTokens(swap: SwapRequest, retryCount: number = 0): Promise<void> {
+    const maxRetries = 3;
+    
     try {
       // Get preimage from database
       const preimage = swap.preimageHash;
@@ -783,6 +860,7 @@ private async processSwap(swap: SwapRequest): Promise<void> {
       console.log(`   Contract ID: ${swap.userHtlcContract || 'MISSING'}`);
       console.log(`   Hash Lock: ${swap.hashLock}`);
       console.log(`   Preimage available: ${!!preimage}`);
+      console.log(`   Retry attempt: ${retryCount}/${maxRetries}`);
       
       if (!preimage) {
         throw new Error('No preimage available for claiming HTLC');
@@ -850,7 +928,27 @@ private async processSwap(swap: SwapRequest): Promise<void> {
 
     } catch (error) {
       console.error(`❌ Claim failed for swap ${swap.id}:`, error);
-      throw new Error(`Failed to claim user tokens: ${(error as Error).message}`);
+      
+      // Retry logic for transient errors
+      const errorMessage = (error as Error).message;
+      const isRetryableError = 
+        errorMessage.includes('nonce') ||
+        errorMessage.includes('replacement fee') ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('network');
+      
+      if (isRetryableError && retryCount < maxRetries) {
+        console.log(`🔄 Retrying claim for swap ${swap.id} (attempt ${retryCount + 1}/${maxRetries})...`);
+        
+        // Wait before retry (exponential backoff)
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Retry the claim
+        return this.claimUserTokens(swap, retryCount + 1);
+      }
+      
+      throw new Error(`Failed to claim user tokens: ${errorMessage}`);
     }
   }
 
