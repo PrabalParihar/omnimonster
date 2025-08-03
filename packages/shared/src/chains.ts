@@ -48,7 +48,7 @@ export const evmChains: Record<string, EvmChainConfig & { forwarders?: Forwarder
     chainId: 11155111,
     rpcUrl: getEnvVar('SEPOLIA_RPC_URL', 'https://eth-sepolia.g.alchemy.com/v2/MS9pGRxd1Jh3rhVjyIkFzVfG1g3BcTk3'),
     blockExplorer: 'https://sepolia.etherscan.io',
-    htlcAddress: getEnvVar('NEXT_PUBLIC_SEPOLIA_HTLC', '0x5d981ca300DDAAb10D2bD98E3115264C1A2c168D'),
+    htlcAddress: getEnvVar('NEXT_PUBLIC_SEPOLIA_HTLC', '0x89f4e5B11264b6e1FcEeE07E840d3A88Ba0b23C7'),
     faucetUrl: 'https://sepoliafaucet.com',
     forwarders: {
       minimalForwarder: null, // Not deployed yet
@@ -74,11 +74,24 @@ export const evmChains: Record<string, EvmChainConfig & { forwarders?: Forwarder
     chainId: 10143,
     rpcUrl: getEnvVar('MONAD_RPC_URL', 'https://testnet-rpc.monad.xyz'),
     blockExplorer: 'https://testnet.monadexplorer.com',
-    htlcAddress: getEnvVar('NEXT_PUBLIC_MONAD_HTLC', '0x1C2D085DdF3c3FE877f3Bc0709c97F8342FCF868'), // Updated to MONSTER token
+    htlcAddress: getEnvVar('NEXT_PUBLIC_MONAD_HTLC', '0xAAaa9c73a0d91472B8a0eb4DEa373E08d3Cb60B9'), // SimpleHTLC deployed 2025-08-02
     faucetUrl: 'https://faucet.monad.xyz',
     forwarders: {
       minimalForwarder: null, // Not deployed yet
-      htlcForwarder: null // Not deployed yet
+      htlcForwarder: getEnvVar('MONAD_HTLC_FORWARDER', '0xd2Ca0526Cf99CF8Cf30742F3E1F6Cb94Fcd33Cc6')
+    }
+  },
+  etherlinkTestnet: {
+    name: 'Etherlink Testnet',
+    type: 'evm',
+    chainId: 128123, // Etherlink testnet chain ID
+    rpcUrl: getEnvVar('ETHERLINK_RPC_URL', 'https://node.ghostnet.etherlink.com'),
+    blockExplorer: 'https://testnet.explorer.etherlink.com',
+    htlcAddress: getEnvVar('NEXT_PUBLIC_ETHERLINK_HTLC', '0xC9E4Df418AEeCA680D8933A730Bd207F17B3C260'),
+    faucetUrl: 'https://faucet.etherlink.com',
+    forwarders: {
+      minimalForwarder: null,
+      htlcForwarder: null
     }
   }
 };

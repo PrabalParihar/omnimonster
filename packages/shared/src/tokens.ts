@@ -13,7 +13,7 @@ export const CHAIN_TOKENS: Record<string, Token[]> = {
     {
       symbol: 'MONSTER',
       name: 'Monster Token',
-      address: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707',
+      address: '0x34604F9A9b00B49E70Cbf32e4417c75469abF03E',
       decimals: 18,
       chainId: 11155111,
       icon: '🦄'
@@ -63,17 +63,9 @@ export const CHAIN_TOKENS: Record<string, Token[]> = {
   ],
   monadTestnet: [
     {
-      symbol: 'OMNI',
-      name: 'Omni Token',
-      address: '0x74DfeC5497e890d182eACAbEDf92bcA9021Aaad3',
-      decimals: 18,
-      chainId: 10143,
-      icon: '🌟'
-    },
-    {
       symbol: 'MONSTER',
       name: 'Monster Token',
-      address: '0x1C2D085DdF3c3FE877f3Bc0709c97F8342FCF868',
+      address: '0x6f086D3a6430567d444aA55b9B37DF229Fb4677B',
       decimals: 18,
       chainId: 10143,
       icon: '🦄'
@@ -81,10 +73,28 @@ export const CHAIN_TOKENS: Record<string, Token[]> = {
     {
       symbol: 'OMNIMONSTER',
       name: 'Omni Monster Token',
-      address: '0x242BD3e422a946b5D2EB83C8c9A9B5c6499EEcFa',
+      address: '0x415B0CE8b921647Dd8C0B298cAe3588ffE487E24',
       decimals: 18,
       chainId: 10143,
-      icon: '🦄🌟'
+      icon: '🌟'
+    }
+  ],
+  etherlinkTestnet: [
+    {
+      symbol: 'DRAGON',
+      name: 'Dragon Token',
+      address: '0x74DfeC5497e890d182eACAbEDf92bcA9021Aaad3',
+      decimals: 18,
+      chainId: 128123,
+      icon: '🐉'
+    },
+    {
+      symbol: 'XTZ',
+      name: 'Tezos',
+      address: '0x0000000000000000000000000000000000000000', // Native token
+      decimals: 18,
+      chainId: 128123,
+      icon: '🔷'
     }
   ],
   cosmosTestnet: [
@@ -123,13 +133,13 @@ export const getAllTokens = (): Token[] => {
 export const SUPPORTED_SWAP_PAIRS = [
   {
     from: { chain: 'sepolia', token: 'MONSTER' },
-    to: { chain: 'monadTestnet', token: 'OMNI' },
-    description: 'Monster Token → Omni Token (Cross-chain)'
+    to: { chain: 'monadTestnet', token: 'OMNIMONSTER' },
+    description: 'Monster Token → OmniMonster Token (Cross-chain)'
   },
   {
-    from: { chain: 'monadTestnet', token: 'OMNI' },
+    from: { chain: 'monadTestnet', token: 'OMNIMONSTER' },
     to: { chain: 'sepolia', token: 'MONSTER' },
-    description: 'Omni Token → Monster Token (Cross-chain)'
+    description: 'OmniMonster Token → Monster Token (Cross-chain)'
   },
   {
     from: { chain: 'sepolia', token: 'USDC' },
@@ -140,6 +150,27 @@ export const SUPPORTED_SWAP_PAIRS = [
     from: { chain: 'polygonAmoy', token: 'USDT' },
     to: { chain: 'sepolia', token: 'USDT' },
     description: 'USDT Cross-chain Bridge'
+  },
+  // Etherlink Dragon token pairs
+  {
+    from: { chain: 'sepolia', token: 'MONSTER' },
+    to: { chain: 'etherlinkTestnet', token: 'DRAGON' },
+    description: 'Monster Token → Dragon Token (Cross-chain)'
+  },
+  {
+    from: { chain: 'etherlinkTestnet', token: 'DRAGON' },
+    to: { chain: 'sepolia', token: 'MONSTER' },
+    description: 'Dragon Token → Monster Token (Cross-chain)'
+  },
+  {
+    from: { chain: 'monadTestnet', token: 'OMNIMONSTER' },
+    to: { chain: 'etherlinkTestnet', token: 'DRAGON' },
+    description: 'OmniMonster Token → Dragon Token (Cross-chain)'
+  },
+  {
+    from: { chain: 'etherlinkTestnet', token: 'DRAGON' },
+    to: { chain: 'monadTestnet', token: 'OMNIMONSTER' },
+    description: 'Dragon Token → OmniMonster Token (Cross-chain)'
   }
 ];
 

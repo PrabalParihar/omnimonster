@@ -140,7 +140,7 @@ export class FusionDAO {
     query += ' ORDER BY created_at DESC';
     
     const result = await this.db.query(query, params);
-    return result.rows.map(row => this.transformDbRowToSwapRequest(row));
+    return result.rows.map((row: any) => this.transformDbRowToSwapRequest(row));
   }
 
   async getPendingSwaps(limit: number = 10): Promise<SwapRequest[]> {
@@ -153,7 +153,7 @@ export class FusionDAO {
       LIMIT $1
     `;
     const result = await this.db.query(query, [limit]);
-    return result.rows.map(row => this.transformDbRowToSwapRequest(row));
+    return result.rows.map((row: any) => this.transformDbRowToSwapRequest(row));
   }
 
   // Pool Liquidity Methods
@@ -266,7 +266,7 @@ export class FusionDAO {
       }
     }
 
-    if (updates.status === OperationStatus.COMPLETED) {
+    if (updates.status === OperationStatus.COMPLETED && !updates.completedAt && !updateFields.some(field => field.includes('completed_at'))) {
       updateFields.push(`completed_at = NOW()`);
     }
 
@@ -373,11 +373,6 @@ export class FusionDAO {
     const query = 'SELECT * FROM supported_tokens WHERE token_address = $1 AND is_active = true';
     const result = await this.db.query(query, [tokenAddress]);
     return result.rows[0] || null;
-  }
-
-  // Utility Methods
-  private camelToSnake(str: string): string {
-    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
   }
 
   // System Health and Metrics
