@@ -121,6 +121,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.84.1
         version: 5.84.1(react@18.3.1)
+      '@types/canvas-confetti':
+        specifier: ^1.9.0
+        version: 1.9.0
       '@types/cors':
         specifier: ^2.8.0
         version: 2.8.19
@@ -148,6 +151,9 @@ importers:
       '@web3auth/wallet-connect-v2-adapter':
         specifier: ^8.12.4
         version: 8.12.4(@babel/runtime@7.28.2)(@walletconnect/sign-client@2.21.6)(@walletconnect/types@2.21.6)(@walletconnect/utils@2.21.6)
+      canvas-confetti:
+        specifier: ^1.9.3
+        version: 1.9.3
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -161,7 +167,7 @@ importers:
         specifier: ^6.15.0
         version: 6.15.0
       framer-motion:
-        specifier: ^10.0.0
+        specifier: ^10.18.0
         version: 10.18.0(react-dom@18.3.1)(react@18.3.1)
       lucide-react:
         specifier: ^0.290.0
@@ -169,6 +175,9 @@ importers:
       next:
         specifier: ^14.0.0
         version: 14.2.30(@babel/core@7.28.0)(react-dom@18.3.1)(react@18.3.1)
+      next-themes:
+        specifier: ^0.4.6
+        version: 0.4.6(react-dom@18.3.1)(react@18.3.1)
       node-fetch:
         specifier: ^3.3.0
         version: 3.3.2
@@ -6033,6 +6042,10 @@ packages:
       '@types/node': 20.19.9
     dev: false
 
+  /@types/canvas-confetti@1.9.0:
+    resolution: {integrity: sha512-aBGj/dULrimR1XDZLtG9JwxX1b4HPRF6CX9Yfwh3NvstZEm1ZL7RBnel4keCPSqs1ANRu1u2Aoz9R+VmtjYuTg==}
+    dev: false
+
   /@types/chai-as-promised@7.1.8:
     resolution: {integrity: sha512-ThlRVIJhr69FLlh6IctTXFkmhtP3NpMZ2QGq69StYLyKZFp/HOp1VdKZj7RvfNWYYcJ1xlbLGLLWj1UvP5u/Gw==}
     dependencies:
@@ -8943,6 +8956,10 @@ packages:
 
   /caniuse-lite@1.0.30001727:
     resolution: {integrity: sha512-pB68nIHmbN6L/4C6MH1DokyR3bYqFwjaSs/sWDHGj4CTcFtQUQMuJftVwWkXq7mNWOybD3KhUv3oWHoGxgP14Q==}
+
+  /canvas-confetti@1.9.3:
+    resolution: {integrity: sha512-rFfTURMvmVEX1gyXFgn5QMn81bYk70qa0HLzcIOSVEyl57n6o9ItHeBtUSWdvKAPY0xlvBHno4/v3QPrT83q9g==}
+    dev: false
 
   /cardinal@2.1.1:
     resolution: {integrity: sha512-JSr5eOgoEymtYHBjNWyjrMqet9Am2miJhlfKNdqLp6zoeAh0KN5dRAcxlecj5mAJrmQomgiOBj35xHLrFjqBpw==}
@@ -13671,6 +13688,16 @@ packages:
     resolution: {integrity: sha512-0fsVvQPbo2I18DT2zVHpezmeeNYV2JaJSrseiHLc17GNOxJzUdx5mvSigPu8LtIfZSij5i1wXnXFspEs2CD6hA==}
     dependencies:
       '@segment/isodate': 1.0.3
+    dev: false
+
+  /next-themes@0.4.6(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-pZvgD5L0IEvX5/9GWyHMf3m8BKiVQwsCMHfoFosXtXBMnaS0ZnIJ9ST4b4NqLVKDEm8QBxoNNGNaBv2JNF6XNA==}
+    peerDependencies:
+      react: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
     dev: false
 
   /next@14.2.30(@babel/core@7.28.0)(react-dom@18.3.1)(react@18.3.1):
