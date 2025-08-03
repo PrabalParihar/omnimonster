@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import '@rainbow-me/rainbowkit/styles.css'
 import { cn } from '@/lib/utils'
-import { Navigation } from '@/components/navigation'
+import { ModernNavigation } from '@/components/modern-navigation'
 import { Toaster } from '@/components/ui/toaster'
 import { Providers } from './providers'
 
@@ -32,7 +32,7 @@ export default function RootLayout({
       >
         <Providers>
           <div className="relative flex min-h-screen flex-col">
-            <Navigation />
+            <ModernNavigation />
             <main className="flex-1">
               {children}
             </main>

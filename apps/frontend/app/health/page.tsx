@@ -9,7 +9,7 @@ import {
   Shield, 
   Database, 
   Globe, 
-  FileContract, 
+  FileText, 
   RefreshCw, 
   CheckCircle, 
   XCircle, 
@@ -178,7 +178,7 @@ export default function HealthPage() {
       case 'api endpoints':
         return <Globe className="h-5 w-5" />
       case 'smart contracts':
-        return <FileContract className="h-5 w-5" />
+        return <FileText className="h-5 w-5" />
       case 'pool liquidity':
         return <Zap className="h-5 w-5" />
       default:
