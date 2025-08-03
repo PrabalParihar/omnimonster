@@ -43,7 +43,6 @@ const mockBalances: Record<string, Record<string, string>> = {
     'USDT': '500.0'
   },
   monadTestnet: {
-    'OMNI': '50.0',
     'MONSTER': '25.0',
     'OMNIMONSTER': '75.0'
   },
@@ -79,7 +78,7 @@ export function UpdatedSwapForm() {
       fromChain: "sepolia",
       fromToken: "MONSTER",
       toChain: "monadTestnet", 
-      toToken: "OMNI",
+      toToken: "OMNIMONSTER",
       amount: "",
       beneficiary: address || "",
       timelock: "3600",
@@ -133,8 +132,8 @@ export function UpdatedSwapForm() {
       
       // Mock quote calculation
       const sourceAmount = parseFloat(amount)
-      const exchangeRate = fromToken === 'MONSTER' && toToken === 'OMNI' ? 0.95 : 
-                          fromToken === 'OMNI' && toToken === 'MONSTER' ? 1.05 :
+      const exchangeRate = fromToken === 'MONSTER' && toToken === 'OMNIMONSTER' ? 0.99 : 
+                          fromToken === 'OMNIMONSTER' && toToken === 'MONSTER' ? 1.01 :
                           0.99 // Default rate for other pairs
       
       const targetAmount = sourceAmount * exchangeRate
@@ -178,6 +177,9 @@ export function UpdatedSwapForm() {
   }
 
   const isSwapSupported = () => {
+    console.log('Checking swap support:', { fromChain, fromToken, toChain, toToken });
+    console.log('Available pairs:', SUPPORTED_SWAP_PAIRS);
+    
     return SUPPORTED_SWAP_PAIRS.some(pair => 
       pair.from.chain === fromChain && 
       pair.from.token === fromToken && 
@@ -319,7 +321,8 @@ export function UpdatedSwapForm() {
                                     <span>
                                       {key === 'sepolia' ? '🔷' : 
                                        key === 'polygonAmoy' ? '🟣' : 
-                                       key === 'monadTestnet' ? '🟡' : '🔗'}
+                                       key === 'monadTestnet' ? '🟡' : 
+                                       key === 'etherlinkTestnet' ? '🐉' : '🔗'}
                                     </span>
                                     <span>{chain.name}</span>
                                   </div>
@@ -439,7 +442,8 @@ export function UpdatedSwapForm() {
                                       <span>
                                         {key === 'sepolia' ? '🔷' : 
                                          key === 'polygonAmoy' ? '🟣' : 
-                                         key === 'monadTestnet' ? '🟡' : '🔗'}
+                                         key === 'monadTestnet' ? '🟡' : 
+                                         key === 'etherlinkTestnet' ? '🐉' : '🔗'}
                                       </span>
                                       <span>{chain.name}</span>
                                     </div>

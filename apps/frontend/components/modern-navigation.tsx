@@ -28,7 +28,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { useState, useEffect } from 'react'
 import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/components/theme-provider'
 
 const navigation = [
   { name: 'Swap', href: '/', icon: Zap, description: 'Trade tokens instantly', color: 'text-blue-600 dark:text-blue-400' },
