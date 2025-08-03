@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Production startup script for Swap Sage Frontend
-echo "🚀 Starting Swap Sage Frontend in Production Mode..."
+# Production startup script for Omnimonster Frontend
+echo "🚀 Starting Omnimonster Frontend in Production Mode..."
 
 # Set production environment
 export NODE_ENV=production
