@@ -86,7 +86,7 @@ const DEPLOYED_CONTRACTS = {
   monadTestnet: {
     chainId: 10143,
     rpcUrl: process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://testnet-rpc.monad.xyz',
-    htlc: '0xAaaA9c73a0d91472b8a0eb4dea373e08d3CB60B9',
+    htlc: '0xAAaa9c73a0d91472B8a0eb4DEa373E08d3Cb60B9',
     monsterToken: process.env.NEXT_PUBLIC_MONAD_MONSTER_TOKEN || '0x6f086D3a6430567d444aA55b9B37DF229Fb4677B',
     omnimonsterToken: process.env.NEXT_PUBLIC_MONAD_OMNIMONSTER_TOKEN || '0x415B0CE8b921647Dd8C0B298cAe3588ffE487E24'
   }
