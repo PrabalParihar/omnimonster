@@ -64,15 +64,23 @@ export class ClientSwapService {
             console.log('✅ Blockchain swap created:', blockchainResult);
 
           // Step 3: Update the swap record with blockchain data
+          // Import ethers for conversion
+          const { ethers } = await import('ethers');
+          
+          // Convert target amount to wei (assuming 18 decimals)
+          // The blockchainResult.targetAmount is in decimal format
+          const expectedAmountWei = ethers.parseUnits(blockchainResult.targetAmount, 18).toString();
+          
           const updateResponse = await fetch(`/api/swaps/${swapRecord.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userAddress: blockchainResult.userAddress,
               hashLock: blockchainResult.secretHash,
+              preimageHash: blockchainResult.secret, // FIXED: Save the preimage for resolver
               userHtlcContract: blockchainResult.contractId,
               status: blockchainResult.status,
-              expectedAmount: blockchainResult.targetAmount
+              expectedAmount: expectedAmountWei
             })
           });
 

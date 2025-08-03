@@ -4,13 +4,13 @@ import { ethers } from 'ethers';
 const SUPPORTED_SWAP_PAIRS = [
   {
     from: { chain: 'sepolia', token: 'MONSTER' },
-    to: { chain: 'monadTestnet', token: 'OMNI' },
-    description: 'Monster Token → Omni Token (Cross-chain)'
+    to: { chain: 'monadTestnet', token: 'OMNIMONSTER' },
+    description: 'Monster Token → OmniMonster Token (Cross-chain)'
   },
   {
-    from: { chain: 'monadTestnet', token: 'OMNI' },
+    from: { chain: 'monadTestnet', token: 'OMNIMONSTER' },
     to: { chain: 'sepolia', token: 'MONSTER' },
-    description: 'Omni Token → Monster Token (Cross-chain)'
+    description: 'OmniMonster Token → Monster Token (Cross-chain)'
   }
 ];
 
@@ -19,7 +19,7 @@ const CHAIN_TOKENS: Record<string, any[]> = {
     {
       symbol: 'MONSTER',
       name: 'Monster Token',
-      address: '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707',
+      address: '0x34604F9A9b00B49E70Cbf32e4417c75469abF03E',
       decimals: 18,
       chainId: 11155111,
       icon: '🦄'
@@ -27,12 +27,20 @@ const CHAIN_TOKENS: Record<string, any[]> = {
   ],
   monadTestnet: [
     {
-      symbol: 'OMNI',
-      name: 'Omni Token', 
-      address: '0x74DfeC5497e890d182eACAbEDf92bcA9021Aaad3',
+      symbol: 'OMNIMONSTER',
+      name: 'Omni Monster Token', 
+      address: '0x415B0CE8b921647Dd8C0B298cAe3588ffE487E24',
       decimals: 18,
       chainId: 10143,
       icon: '🌟'
+    },
+    {
+      symbol: 'MONSTER',
+      name: 'Monster Token', 
+      address: '0x6f086D3a6430567d444aA55b9B37DF229Fb4677B',
+      decimals: 18,
+      chainId: 10143,
+      icon: '🦄'
     }
   ]
 };
@@ -51,25 +59,36 @@ const isSwapPairSupported = (fromChain: string, fromToken: string, toChain: stri
   );
 };
 
+// Pool/Resolver wallet address - this is who can claim user HTLCs in atomic swaps
+const POOL_RESOLVER_ADDRESS = '0x2BCc053BB6915F28aC2041855D2292dDca406903';
+
 // Real deployed contract addresses from your .env
 const DEPLOYED_CONTRACTS = {
   sepolia: {
     chainId: 11155111,
     rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/MS9pGRxd1Jh3rhVjyIkFzVfG1g3BcTk3',
-    htlc: '0x5d981ca300DDAAb10D2bD98E3115264C1A2c168D',
+    htlc: process.env.NEXT_PUBLIC_SEPOLIA_HTLC || '0xb65Dd3b3E7549a9e0c8F0400c28984AEe470EAE8', // New SimpleHTLC
     forwarder: '0xC2Cb379E217D17d6CcD4CE8c5023512325b630e4',
     monsterToken: process.env.NEXT_PUBLIC_SEPOLIA_MONSTER_TOKEN || '0x34604F9A9b00B49E70Cbf32e4417c75469abF03E'
   },
   monadTestnet: {
     chainId: 10143,
     rpcUrl: process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://testnet-rpc.monad.xyz',
-    htlc: '0x1C2D085DdF3c3FE877f3Bc0709c97F8342FCF868', // Match resolver config
-    omniToken: '0x74DfeC5497e890d182eACAbEDf92bcA9021Aaad3'
+    htlc: process.env.NEXT_PUBLIC_MONAD_HTLC || '0x7185D90BCD120dE7d091DF6EA8bd26e912571b61', // New SimpleHTLC
+    omnimonsterToken: '0x415B0CE8b921647Dd8C0B298cAe3588ffE487E24',
+    monsterToken: '0x6f086D3a6430567d444aA55b9B37DF229Fb4677B'
   },
   polygonAmoy: {
     chainId: 80002,
     rpcUrl: process.env.NEXT_PUBLIC_POLYGON_AMOY_RPC_URL || 'https://polygon-amoy.g.alchemy.com/v2/MS9pGRxd1Jh3rhVjyIkFzVfG1g3BcTk3',
     htlc: '0x7CaFE0d0E40B8Ed9B93a067EBEB9A6f9F1D1c0E7'
+  },
+  monadTestnet: {
+    chainId: 10143,
+    rpcUrl: process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://testnet-rpc.monad.xyz',
+    htlc: '0xAaaA9c73a0d91472b8a0eb4dea373e08d3CB60B9',
+    monsterToken: process.env.NEXT_PUBLIC_MONAD_MONSTER_TOKEN || '0x6f086D3a6430567d444aA55b9B37DF229Fb4677B',
+    omnimonsterToken: process.env.NEXT_PUBLIC_MONAD_OMNIMONSTER_TOKEN || '0x415B0CE8b921647Dd8C0B298cAe3588ffE487E24'
   }
 };
 
@@ -231,9 +250,25 @@ export class RealBlockchainSwapService {
       if (web3authProvider) {
         console.log('Using Web3Auth provider');
         const ethersProvider = new ethers.BrowserProvider(web3authProvider);
-        return await ethersProvider.getSigner();
+        const signer = await ethersProvider.getSigner();
+        
+        // Check network for Web3Auth too
+        const network = await ethersProvider.getNetwork();
+        const expectedChainId = DEPLOYED_CONTRACTS[chainKey as keyof typeof DEPLOYED_CONTRACTS]?.chainId;
+        
+        if (expectedChainId && Number(network.chainId) !== expectedChainId) {
+          const networkName = chainKey === 'sepolia' ? 'Ethereum Sepolia' : 
+                             chainKey === 'monadTestnet' ? 'Monad Testnet' : 
+                             chainKey === 'polygonAmoy' ? 'Polygon Amoy' : chainKey;
+          throw new Error(`Please switch your Web3Auth wallet to ${networkName} network (Chain ID: ${expectedChainId}). Current network: Chain ID ${network.chainId}`);
+        }
+        
+        return signer;
       }
-    } catch (web3authError) {
+    } catch (web3authError: any) {
+      if (web3authError.message && web3authError.message.includes('switch your Web3Auth wallet')) {
+        throw web3authError; // Re-throw network switch errors
+      }
       console.log('Web3Auth provider not available, falling back to MetaMask');
     }
 
@@ -250,14 +285,31 @@ export class RealBlockchainSwapService {
     const expectedChainId = DEPLOYED_CONTRACTS[chainKey as keyof typeof DEPLOYED_CONTRACTS]?.chainId;
     
     if (expectedChainId && Number(network.chainId) !== expectedChainId) {
-      // Request network switch
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: `0x${expectedChainId.toString(16)}` }],
-        });
-      } catch (error) {
-        throw new Error(`Please switch to the correct network (Chain ID: ${expectedChainId})`);
+      console.log(`🔄 Network mismatch. Current: ${network.chainId}, Expected: ${expectedChainId}`);
+      
+      // Only try to switch networks if using MetaMask (not Web3Auth)
+      // @ts-ignore
+      if (window.ethereum && !window.web3authProvider) {
+        try {
+          console.log('🔄 Requesting network switch...');
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${expectedChainId.toString(16)}` }],
+          });
+          console.log('✅ Network switched successfully');
+        } catch (switchError: any) {
+          console.error('❌ Network switch failed:', switchError);
+          if (switchError.code === 4902) {
+            throw new Error(`Please add the ${chainKey} network to your wallet`);
+          }
+          throw new Error(`Please manually switch to ${chainKey} network (Chain ID: ${expectedChainId})`);
+        }
+      } else {
+        // For Web3Auth, we need to inform the user to switch manually
+        const networkName = chainKey === 'sepolia' ? 'Ethereum Sepolia' : 
+                           chainKey === 'monadTestnet' ? 'Monad Testnet' : 
+                           chainKey === 'polygonAmoy' ? 'Polygon Amoy' : chainKey;
+        throw new Error(`Please switch your wallet to ${networkName} network (Chain ID: ${expectedChainId}). Current network: Chain ID ${network.chainId}`);
       }
     }
 
@@ -266,7 +318,9 @@ export class RealBlockchainSwapService {
 
   private generateSecret(): { secret: string; hashLock: string } {
     const secret = ethers.randomBytes(32);
-    const hashLock = ethers.keccak256(secret);
+    // Use SHA256 to match SimpleHTLC contract's sha256(abi.encodePacked(preimage)) verification
+    const crypto = require('crypto');
+    const hashLock = '0x' + crypto.createHash('sha256').update(secret).digest('hex');
     return {
       secret: ethers.hexlify(secret),
       hashLock
@@ -295,10 +349,10 @@ export class RealBlockchainSwapService {
     // Define exchange rates for supported pairs
     const rates: Record<string, Record<string, number>> = {
       'MONSTER': {
-        'OMNI': 0.95, // 1 MONSTER = 0.95 OMNI
+        'OMNIMONSTER': 0.99, // 1 MONSTER = 0.99 OMNIMONSTER
       },
-      'OMNI': {
-        'MONSTER': 1.05, // 1 OMNI = 1.05 MONSTER
+      'OMNIMONSTER': {
+        'MONSTER': 1.01, // 1 OMNIMONSTER = 1.01 MONSTER
       }
     };
 
@@ -388,18 +442,53 @@ export class RealBlockchainSwapService {
       let tokenAddress: string;
       if (params.fromToken === 'MONSTER' && params.fromChain === 'sepolia') {
         tokenAddress = (tokenConfig as any).monsterToken || '0x34604F9A9b00B49E70Cbf32e4417c75469abF03E';
-      } else if (params.fromToken === 'OMNI' && params.fromChain === 'monadTestnet') {
-        tokenAddress = (tokenConfig as any).omniToken || '0x74DfeC5497e890d182eACAbEDf92bcA9021Aaad3';
+      } else if (params.fromToken === 'OMNIMONSTER' && params.fromChain === 'monadTestnet') {
+        tokenAddress = (tokenConfig as any).omnimonsterToken || '0x415B0CE8b921647Dd8C0B298cAe3588ffE487E24';
+      } else if (params.fromToken === 'MONSTER' && params.fromChain === 'monadTestnet') {
+        tokenAddress = (tokenConfig as any).monsterToken || '0x6f086D3a6430567d444aA55b9B37DF229Fb4677B';
       } else {
         throw new Error(`Token ${params.fromToken} not configured for ${params.fromChain}`);
       }
 
-      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
       console.log(`💰 Token contract: ${tokenAddress}`);
+      
+      // Check network connection
+      const signerProvider = signer.provider;
+      if (signerProvider) {
+        try {
+          const network = await signerProvider.getNetwork();
+          console.log(`🌐 Connected to network: Chain ID ${network.chainId}, Name: ${network.name || 'Unknown'}`);
+          console.log(`🎯 Expected chain ID: ${tokenConfig.chainId}`);
+          
+          if (Number(network.chainId) !== tokenConfig.chainId) {
+            throw new Error(`Wrong network! Connected to chain ${network.chainId}, but expected ${tokenConfig.chainId}`);
+          }
+          
+          const code = await signerProvider.getCode(tokenAddress);
+          console.log(`📄 Contract code exists: ${code !== '0x' && code !== '0x0'}, length: ${code.length}`);
+          
+          if (code === '0x' || code === '0x0') {
+            throw new Error(`No contract found at ${tokenAddress} on chain ${network.chainId}`);
+          }
+        } catch (error) {
+          console.error('❌ Network/contract verification failed:', error);
+          throw error;
+        }
+      }
+
+      const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
 
       // Check balance
-      const balance = await tokenContract.balanceOf(userAddress);
-      const decimals = await tokenContract.decimals();
+      let balance, decimals;
+      try {
+        balance = await tokenContract.balanceOf(userAddress);
+        decimals = await tokenContract.decimals();
+      } catch (error) {
+        console.error('❌ Failed to interact with token contract:', error);
+        console.log('Token address:', tokenAddress);
+        console.log('User address:', userAddress);
+        throw new Error(`Token contract interaction failed. Please ensure you're connected to the correct network and the token contract exists at ${tokenAddress}`);
+      }
       const requiredAmount = ethers.parseUnits(params.amount, decimals);
 
       console.log(`💳 Balance: ${ethers.formatUnits(balance, decimals)} ${params.fromToken}`);
@@ -415,7 +504,39 @@ export class RealBlockchainSwapService {
 
       if (allowance < requiredAmount) {
         console.log('🔐 Approving HTLC contract...');
-        const approveTx = await tokenContract.approve(tokenConfig.htlc, requiredAmount);
+        
+        // Get gas options for approval transaction
+        const provider = signer.provider;
+        if (!provider) {
+          throw new Error('No provider available from signer');
+        }
+        const approvalGasOptions: any = { gasLimit: 100000 };
+        
+        try {
+          const approvalFeeData = await provider.getFeeData();
+          if (approvalFeeData.maxFeePerGas && approvalFeeData.maxPriorityFeePerGas) {
+            approvalGasOptions.maxFeePerGas = approvalFeeData.maxFeePerGas * 15n / 10n; // 50% buffer
+            approvalGasOptions.maxPriorityFeePerGas = approvalFeeData.maxPriorityFeePerGas * 15n / 10n; // 50% buffer
+          } else if (approvalFeeData.gasPrice) {
+            approvalGasOptions.gasPrice = approvalFeeData.gasPrice * 15n / 10n; // 50% buffer
+          }
+        } catch (feeError) {
+          console.log('⚠️ Could not get fee data, using fallback gas price');
+          try {
+            const gasPrice = await provider.getGasPrice();
+            approvalGasOptions.gasPrice = gasPrice * 15n / 10n; // 50% buffer
+          } catch (gasPriceError) {
+            console.log('⚠️ Could not get gas price, using default');
+            // Use a reasonable default gas price
+            approvalGasOptions.gasPrice = ethers.parseUnits('30', 'gwei');
+          }
+        }
+        
+        // Get current nonce for logging
+        const approvalNonce = await provider.getTransactionCount(userAddress, 'pending');
+        console.log(`📊 Approval transaction using nonce: ${approvalNonce}`);
+        
+        const approveTx = await tokenContract.approve(tokenConfig.htlc, requiredAmount, approvalGasOptions);
         console.log(`⏳ Approve tx: ${approveTx.hash}`);
         await approveTx.wait();
         console.log('✅ Approval confirmed');
@@ -435,23 +556,129 @@ export class RealBlockchainSwapService {
       );
       console.log(`🆔 Generated Contract ID: ${contractId}`);
       
-      const fundTx = await htlcContract.fund(
-        contractId,
-        tokenAddress,
-        params.beneficiary,
-        hashLock,
-        timelock,
-        requiredAmount
-      );
+      // Get current gas price and add buffer for potential replacement
+      const provider = signer.provider;
+      if (!provider) {
+        throw new Error('No provider available from signer');
+      }
+      
+      const gasOptions: any = {
+        gasLimit: 300000, // Set reasonable gas limit
+        // Note: nonce will be set dynamically for each transaction attempt
+      };
+      
+      try {
+        const feeData = await provider.getFeeData();
+        let gasPrice = feeData.gasPrice;
+        
+        // Add 50% buffer to handle potential transaction replacement
+        if (gasPrice) {
+          gasPrice = gasPrice * 15n / 10n; // 50% increase
+        }
+        
+        // Use Type 2 transactions (EIP-1559) if supported, otherwise legacy
+        if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+          gasOptions.maxFeePerGas = feeData.maxFeePerGas * 15n / 10n; // 50% buffer
+          gasOptions.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * 15n / 10n; // 50% buffer
+        } else if (gasPrice) {
+          gasOptions.gasPrice = gasPrice;
+        }
+      } catch (feeError) {
+        console.log('⚠️ Could not get fee data, using fallback gas price');
+        try {
+          const gasPrice = await provider.getGasPrice();
+          gasOptions.gasPrice = gasPrice * 15n / 10n; // 50% buffer
+        } catch (gasPriceError) {
+          console.log('⚠️ Could not get gas price, using default');
+          // Use a reasonable default gas price
+          gasOptions.gasPrice = ethers.parseUnits('30', 'gwei');
+        }
+      }
+      
+      console.log('⛽ Gas options:', gasOptions);
+      
+      let fundTx;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          // Get fresh nonce for each attempt
+          const currentNonce = await provider.getTransactionCount(userAddress, 'pending');
+          gasOptions.nonce = currentNonce;
+          
+          console.log(`📊 Attempt ${retryCount + 1} - Using nonce: ${currentNonce}`);
+          
+          fundTx = await htlcContract.fund(
+            contractId,
+            tokenAddress,
+            params.beneficiary,
+            hashLock,
+            timelock,
+            requiredAmount,
+            gasOptions
+          );
+          break; // Success, exit retry loop
+          
+        } catch (error: any) {
+          retryCount++;
+          console.warn(`⚠️ Transaction attempt ${retryCount} failed:`, error.message);
+          console.warn(`   Error code: ${error.code}`);
+          console.warn(`   Error reason: ${error.reason || 'N/A'}`);
+          
+          // Handle different types of transaction errors
+          const retryableErrors = ['REPLACEMENT_UNDERPRICED', 'NONCE_EXPIRED', 'INSUFFICIENT_FUNDS'];
+          const hasNonceError = error.message.includes('nonce') || error.message.includes('transaction count');
+          const hasReplacementError = error.message.includes('replacement') || error.message.includes('underpriced');
+          const isRetryable = retryableErrors.includes(error.code) || hasNonceError || hasReplacementError;
+          
+          if (isRetryable && retryCount < maxRetries) {
+            console.log('🔄 Retrying with adjusted parameters...');
+            
+            // Increase gas price by additional 50% for retry
+            if (gasOptions.maxFeePerGas) {
+              gasOptions.maxFeePerGas = gasOptions.maxFeePerGas * 15n / 10n;
+              gasOptions.maxPriorityFeePerGas = gasOptions.maxPriorityFeePerGas * 15n / 10n;
+            } else if (gasOptions.gasPrice) {
+              gasOptions.gasPrice = gasOptions.gasPrice * 15n / 10n;
+            }
+            
+            // Nonce will be refreshed automatically on next attempt
+            
+            console.log('⛽ Retry gas options:', gasOptions);
+            
+            // Wait longer before retry, especially for nonce errors
+            const delayMs = hasNonceError ? 3000 : 5000;
+            console.log(`⏳ Waiting ${delayMs}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            continue;
+          }
+          
+          // If it's the last retry or a non-retryable error, throw it
+          if (retryCount >= maxRetries || !isRetryable) {
+            console.error(`❌ Final error after ${retryCount} attempts:`, error);
+            throw error;
+          }
+        }
+      }
+      
+      if (!fundTx) {
+        throw new Error('Failed to send transaction after all retries');
+      }
 
       console.log(`⏳ HTLC funding tx: ${fundTx.hash}`);
-      await fundTx.wait();
-      console.log('✅ HTLC funded successfully');
+      console.log('⏳ Waiting for 2 confirmations...');
+      const receipt = await fundTx.wait(2); // Wait for 2 confirmations
+      console.log(`✅ HTLC funded successfully with ${receipt?.confirmations || 'N/A'} confirmations`);
 
       swapResult.transactionHashes.htlcFunding = fundTx.hash;
       swapResult.contractId = contractId; // Set the actual contract ID
       swapResult.status = 'PENDING';
 
+      // Add a small delay to ensure RPC nodes are synced
+      console.log('⏳ Waiting for RPC propagation...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       // Database operations are handled by the ClientSwapService
       console.log('✅ Blockchain operations completed - database will be updated via API');
 

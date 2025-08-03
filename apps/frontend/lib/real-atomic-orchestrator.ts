@@ -1,8 +1,22 @@
 import { ethers, JsonRpcProvider, Wallet, Contract } from 'ethers';
 import { randomBytes, createHash } from 'crypto';
-import { swapDatabase, SwapRecord, SwapEvent } from './database';
+// import { swapDatabase, SwapRecord, SwapEvent } from './database';
 
-// Contract ABIs (simplified for the essential functions)
+// Contract ABIs (updated for SimpleHTLC)
+const SIMPLE_HTLC_ABI = [
+  'function fundETH(bytes32 contractId, address payable beneficiary, bytes32 hashLock, uint256 timelock) payable',
+  'function claim(bytes32 contractId, bytes32 preimage)',
+  'function refund(bytes32 contractId)',
+  'function getDetails(bytes32 contractId) view returns (address token, address beneficiary, address originator, bytes32 hashLock, uint256 timelock, uint256 value, uint8 state)',
+  'function isClaimable(bytes32 contractId) view returns (bool)',
+  'function isRefundable(bytes32 contractId) view returns (bool)',
+  'function getCurrentTime() view returns (uint256)',
+  'event HTLCCreated(bytes32 indexed contractId, address indexed originator, address indexed beneficiary, address token, uint256 value, bytes32 hashLock, uint256 timelock)',
+  'event HTLCClaimed(bytes32 indexed contractId, address indexed claimer, bytes32 preimage)',
+  'event HTLCRefunded(bytes32 indexed contractId, address indexed refunder)'
+];
+
+// Legacy HTLC ABI for backward compatibility
 const FUSION_HTLC_ABI = [
   'function fundERC20(bytes32 contractId, address payable beneficiary, bytes32 hashLock, uint256 timelock, address token, uint256 value)',
   'function fundETH(bytes32 contractId, address payable beneficiary, bytes32 hashLock, uint256 timelock) payable',
@@ -67,6 +81,19 @@ const CONTRACT_ADDRESSES = {
     FusionForwarder: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
     SwapSageHTLCForwarder: '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9',
     SimpleMonsterToken: '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9'
+  },
+  monadTestnet: {
+    SimpleHTLC: '0x7185D90BCD120dE7d091DF6EA8bd26e912571b61',
+    MonsterToken: '0x6f086D3a6430567d444aA55b9B37DF229Fb4677B',
+    OmniMonsterToken: '0x415B0CE8b921647Dd8C0B298cAe3588ffE487E24'
+  },
+  sepolia: {
+    HTLC: '0x5d981ca300DDAAb10D2bD98E3115264C1A2c168D', // Note: This is broken, needs replacement
+    HTLCForwarder: '0xC2Cb379E217D17d6CcD4CE8c5023512325b630e4'
+  },
+  polygonAmoy: {
+    HTLC: '0x04139d1fCC2E6f8b964C257eFceEA99a783Df422',
+    MinimalForwarder: '0xFaE696466e232634F7349c88d6f338af4eA6fa6C'
   }
 };
 
@@ -76,19 +103,45 @@ export class RealAtomicOrchestrator {
   private htlcContract: Contract;
   private poolManagerContract: Contract;
   private activeSwaps: Map<string, SwapResult> = new Map();
+  private network: string;
 
-  constructor() {
-    // Initialize with localhost for development
-    this.provider = new JsonRpcProvider('http://127.0.0.1:8545');
+  constructor(network: string = 'monadTestnet') {
+    this.network = network;
     
-    // Use the first test account from Hardhat
-    const privateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-    this.wallet = new Wallet(privateKey, this.provider);
+    // Network configurations
+    const networkConfigs = {
+      localhost: {
+        rpc: 'http://127.0.0.1:8545',
+        privateKey: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+      },
+      monadTestnet: {
+        rpc: 'https://testnet-rpc.monad.xyz',
+        privateKey: 'e736d47829f72409da6cd0eb8e7127cdd8195c455c4e5c39b532de58a59f2647'
+      },
+      sepolia: {
+        rpc: 'https://eth-sepolia.g.alchemy.com/v2/MS9pGRxd1Jh3rhVjyIkFzVfG1g3BcTk3',
+        privateKey: 'e736d47829f72409da6cd0eb8e7127cdd8195c455c4e5c39b532de58a59f2647'
+      }
+    };
+
+    const config = networkConfigs[network as keyof typeof networkConfigs] || networkConfigs.monadTestnet;
     
-    // Initialize contracts
-    const addresses = CONTRACT_ADDRESSES.localhost;
-    this.htlcContract = new Contract(addresses.FusionHTLC, FUSION_HTLC_ABI, this.wallet);
-    this.poolManagerContract = new Contract(addresses.FusionPoolManager, FUSION_POOL_MANAGER_ABI, this.wallet);
+    // Initialize provider and wallet
+    this.provider = new JsonRpcProvider(config.rpc);
+    this.wallet = new Wallet(config.privateKey, this.provider);
+    
+    // Initialize contracts based on network
+    if (network === 'monadTestnet') {
+      const addresses = CONTRACT_ADDRESSES.monadTestnet;
+      this.htlcContract = new Contract(addresses.SimpleHTLC, SIMPLE_HTLC_ABI, this.wallet);
+      // Pool manager not available on Monad yet, use dummy contract
+      this.poolManagerContract = new Contract(addresses.SimpleHTLC, SIMPLE_HTLC_ABI, this.wallet);
+    } else {
+      // Fallback to localhost config
+      const addresses = CONTRACT_ADDRESSES.localhost;
+      this.htlcContract = new Contract(addresses.FusionHTLC, FUSION_HTLC_ABI, this.wallet);
+      this.poolManagerContract = new Contract(addresses.FusionPoolManager, FUSION_POOL_MANAGER_ABI, this.wallet);
+    }
   }
 
   async createSwap(request: SwapRequest): Promise<SwapResult> {
@@ -106,21 +159,34 @@ export class RealAtomicOrchestrator {
       // Default timelock: 24 hours from now
       const timelock = Math.floor(Date.now() / 1000) + (request.timelock || 24 * 60 * 60);
       
-      // For demo, we'll use the test token
-      const tokenAddress = CONTRACT_ADDRESSES.localhost.SimpleMonsterToken;
+      // Use appropriate token based on network
+      let tokenAddress: string;
+      if (this.network === 'monadTestnet') {
+        // Use Monster Token for demo on Monad
+        tokenAddress = CONTRACT_ADDRESSES.monadTestnet.MonsterToken;
+      } else {
+        tokenAddress = CONTRACT_ADDRESSES.localhost.SimpleMonsterToken;
+      }
       const amount = ethers.parseEther(request.amount);
       
       // Generate contract ID
-      const nonce = Math.floor(Date.now() / 1000);
-      const contractId = await this.htlcContract.generateId(
-        this.wallet.address,
-        request.beneficiary,
-        hashLock,
-        timelock,
-        tokenAddress,
-        amount,
-        nonce
-      );
+      let contractId: string;
+      if (this.network === 'monadTestnet') {
+        // For SimpleHTLC, generate random contract ID
+        contractId = ethers.hexlify(ethers.randomBytes(32));
+      } else {
+        // For FusionHTLC, use generateId function
+        const nonce = Math.floor(Date.now() / 1000);
+        contractId = await this.htlcContract.generateId(
+          this.wallet.address,
+          request.beneficiary,
+          hashLock,
+          timelock,
+          tokenAddress,
+          amount,
+          nonce
+        );
+      }
 
       // Create swap record for database
       const swapRecord: SwapRecord = {
@@ -160,7 +226,7 @@ export class RealAtomicOrchestrator {
 
       // Save to database
       try {
-        await swapDatabase.createSwapWithEvent(swapRecord, initialEvent);
+        // await swapDatabase.createSwapWithEvent(swapRecord, initialEvent);
       } catch (dbError) {
         console.error('❌ Database save failed, but continuing:', dbError);
       }
@@ -392,7 +458,7 @@ export class RealAtomicOrchestrator {
   async getSwaps(): Promise<SwapResult[]> {
     try {
       // Try to get from database first
-      const dbSwaps = await swapDatabase.getSwaps();
+      const dbSwaps: any[] = []; // await swapDatabase.getSwaps();
       return dbSwaps.map(swap => ({
         id: swap.id,
         status: swap.status as 'pending' | 'pool_fulfilled' | 'user_claimed' | 'expired' | 'cancelled',
